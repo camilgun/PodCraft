@@ -47,24 +47,39 @@ podcraft/
 
 ---
 
-### Task 1.2 — Setup ML Service Python
+### Task 1.2 — Setup ML Service Python ✅
 
 **Cosa fare:**
 - Creare `services/ml/` con FastAPI
 - `pyproject.toml` con dipendenze: `fastapi`, `uvicorn`, `mlx-audio`, `pydantic`
 - Endpoint health check `GET /health`
+- Configurare `HF_HOME` nel `.env` per storage modelli in posizione dedicata (default: `~/.podcraft/models/`)
 - Script `scripts/download-models.sh` che scarica i modelli MLX da HuggingFace:
-  - `mlx-community/Qwen3-ASR-0.6B-8bit` (usiamo il piccolo per lo spike, poi si scala)
-  - `mlx-community/Qwen3-ForcedAligner-0.6B-8bit`
-  - `mlx-community/Qwen3-TTS-12Hz-0.6B-Base-bf16`
-- Configurare Turborepo per includere il ML service nel comando `pnpm dev`
+  - `mlx-community/Qwen3-ASR-1.7B-bf16` (~4.08 GB) — bf16 verificato disponibile
+  - `mlx-community/Qwen3-ForcedAligner-0.6B-bf16` (~1.84 GB) — bf16 verificato disponibile
+  - `mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16` (~4.54 GB) — bf16 full precision
+  - Peso NISQA via torchmetrics (download automatico al primo uso, ~50 MB)
+- Lo script deve usare `huggingface-cli download` con `--local-dir` che punta a `HF_HOME`
+- Orchestrazione dev via Turborepo (package.json wrapper in services/ml/)
+- Aggiornare `.env.example` con `HF_HOME` e i model IDs
 
-**Nota sui modelli per lo spike**: partiamo con i modelli 0.6B per velocità di download e test. Se la qualità è sufficiente, rimaniamo su quelli. Se no, si scala a 1.7B (il Mac li regge).
+**Risultato verifica bf16**: Tutte le versioni bf16 sono disponibili su mlx-community, incluso ForcedAligner (precedentemente indicato come "solo 8-bit"). Usato bf16 ovunque.
+
+**Python tooling**: `uv` per gestione dipendenze e venv. `.python-version = 3.11`.
+
+**Perché bf16 ovunque:**
+- Con 36 GB di RAM non c'è pressione a quantizzare (~10.5 GB totale per tutti i modelli)
+- La trascrizione è asincrona, la velocità extra della quantizzazione non migliora la UX
+- La qualità è prioritaria: nessun compromesso su precisione transcript e naturalezza TTS
+- Totale download: ~10.5 GB, totale RAM picco stimato (lazy loading): ~10-12 GB
 
 **Criterio di completamento:**
-- `python -m uvicorn app.main:app` avvia il servizio su localhost:5000
-- I modelli sono scaricati nella cache locale
-- `GET /health` risponde con modelli disponibili
+- ✅ `uv run uvicorn app.main:app` avvia il servizio su localhost:5001
+- ✅ `GET /health` risponde con lista modelli disponibili e il loro path
+- ✅ Test passano (4/4)
+- ✅ Turborepo integration funzionante (`pnpm dev`, `turbo run test/lint`)
+- I modelli vanno scaricati con `./scripts/download-models.sh` (non eseguito in questa sessione)
+- I modelli persistono tra riavvii (non vengono riscaricati)
 
 ---
 

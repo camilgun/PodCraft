@@ -8,11 +8,12 @@
   },
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "services/*"
   ],
   "scripts": {
     "preinstall": "node -e \"const ua=process.env.npm_config_user_agent||''; if(!ua.includes('pnpm/10.29.3')){console.error('Use pnpm 10.29.3'); process.exit(1)}\"",
-    "dev": "turbo run dev --parallel --filter=@podcraft/web --filter=@podcraft/server",
+    "dev": "turbo run dev --parallel --filter=@podcraft/web --filter=@podcraft/server --filter=@podcraft/ml",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck && pnpm run typecheck:tooling",
     "typecheck:tooling": "tsc --project tsconfig.json --noEmit",

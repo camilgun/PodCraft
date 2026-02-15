@@ -5,3 +5,13 @@ node_modules/
 dist/
 coverage/
 .DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# Environment
+.env
+.env.local

@@ -14,7 +14,7 @@ e può rigenerare sezioni scarsa qualità con TTS voice clone.
 - `apps/web` — Vite, React 19, TypeScript, Tailwind, shadcn/ui, React Router 7, Wavesurfer.js
 - `apps/server` — Node.js, Hono, BullMQ + Redis, Drizzle ORM + SQLite
 - `packages/shared` — Tipi TypeScript + Zod schemas condivisi
-- `services/ml` — Python FastAPI, mlx-audio (Qwen3-ASR, Qwen3-TTS, Qwen3-ForcedAligner, NISQA)
+- `services/ml` — Python 3.11 (uv), FastAPI, mlx-audio (Qwen3-ASR, Qwen3-TTS, Qwen3-ForcedAligner, NISQA). Tutti modelli bf16.
 - Audio processing: FFmpeg via fluent-ffmpeg
 
 ## Regole VINCOLANTI

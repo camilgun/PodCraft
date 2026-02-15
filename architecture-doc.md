@@ -95,16 +95,16 @@ PodCraft è un tool web per content creator che trasforma registrazioni audio gr
 
 ### Modelli AI
 
-**Locali su Apple M4 Max (36 GB) — tutti via MLX (mlx-audio):**
+**Locali su Apple M4 Max (36 GB) — tutti via MLX (mlx-audio), tutti bf16:**
 
-| Modello | Task | Size | RAM stimata |
-|---|---|---|---|
-| Qwen3-ASR-1.7B | Speech-to-Text (52 lingue) | ~3.5 GB | ~4 GB |
-| Qwen3-ForcedAligner-0.6B | Timestamps word-level (11 lingue) | ~1.3 GB | ~2 GB |
-| Qwen3-TTS-12Hz-1.7B | TTS + Voice Clone (10 lingue, 3s sample) | ~4.5 GB | ~5 GB |
-| NISQA v2.0 | Audio Quality Score (MOS 1-5, non-intrusivo) | ~50 MB | ~0.5 GB |
+| Modello | Repo ID | Task | Size | RAM stimata |
+|---|---|---|---|---|
+| Qwen3-ASR-1.7B-bf16 | `mlx-community/Qwen3-ASR-1.7B-bf16` | Speech-to-Text (52 lingue) | ~4.08 GB | ~4.5 GB |
+| Qwen3-ForcedAligner-0.6B-bf16 | `mlx-community/Qwen3-ForcedAligner-0.6B-bf16` | Timestamps word-level (11 lingue) | ~1.84 GB | ~2.5 GB |
+| Qwen3-TTS-12Hz-1.7B-Base-bf16 | `mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16` | TTS + Voice Clone (10 lingue, 3s sample) | ~4.54 GB | ~5 GB |
+| NISQA v2.0 | `torchmetrics` (auto-download) | Audio Quality Score (MOS 1-5, non-intrusivo) | ~50 MB | ~0.5 GB |
 
-Totale picco: ~11.5 GB. I modelli vengono caricati on-demand (lazy loading).
+Totale picco: ~12.5 GB. I modelli vengono caricati on-demand (lazy loading). Tutti bf16 per massima qualità.
 
 **Remoto:**
 
@@ -382,26 +382,28 @@ podcraft/
 │       └── package.json
 │
 ├── services/
-│   └── ml/                       # Python ML Service (FastAPI)
+│   └── ml/                       # Python ML Service (FastAPI, uv)
 │       ├── app/
-│       │   ├── main.py           # FastAPI app
+│       │   ├── main.py           # FastAPI app + health check
+│       │   ├── config.py         # pydantic-settings config
+│       │   ├── schemas.py        # Pydantic schemas (mirror di Zod)
 │       │   ├── routers/
 │       │   │   ├── asr.py        # POST /transcribe
 │       │   │   ├── align.py      # POST /align
 │       │   │   ├── tts.py        # POST /synthesize
 │       │   │   └── quality.py    # POST /assess-quality
-│       │   ├── models/           # Model loading & inference wrappers
-│       │   │   ├── base.py       # Provider interfaces
-│       │   │   ├── asr_model.py
-│       │   │   ├── aligner_model.py
-│       │   │   ├── tts_model.py
-│       │   │   └── quality_model.py
-│       │   └── schemas.py        # Pydantic (mirror di Zod)
+│       │   └── models/           # Model loading & inference wrappers
+│       │       ├── base.py       # Provider interfaces
+│       │       ├── asr_model.py
+│       │       ├── aligner_model.py
+│       │       ├── tts_model.py
+│       │       └── quality_model.py
 │       ├── pyproject.toml
+│       ├── package.json          # Turborepo integration wrapper
+│       ├── .python-version       # Python 3.11 pin per uv
 │       └── tests/
 │
 └── scripts/
-    ├── setup.sh                  # Bootstrap: installa deps, scarica modelli, init DB
     └── download-models.sh        # Scarica pesi MLX da HuggingFace
     # Dev orchestration: usare `pnpm dev` (gestito da Turborepo)
 ```
