@@ -517,6 +517,8 @@ Pipeline asincrona gestita da BullMQ. Ogni step è un job separato.
 
 ### Step 2 — Transcription (trigger: utente)
 - Job `transcribe`: invia audio a ML Service → Qwen3-ASR-1.7B
+- Il job può passare `language` come hint (es. `it`, `en`) all'endpoint `/transcribe`
+- Se `language` non è passato, il ML service usa `ASR_DEFAULT_LANGUAGE` se configurato; altrimenti usa il default modello
 - Per audio > 20 min: chunking con VAD prima dell'invio
 - Output: testo completo + language detection
 - Progresso inviato via WebSocket al frontend
@@ -564,7 +566,7 @@ interface AppConfig {
   recordingsDir: string;     // default: ~/registrazioni
   claudeApiKey: string;
   qualityThreshold: number;  // MOS soglia (default: 3.0)
-  defaultLanguage: string;   // per hint ASR (default: 'it')
+  defaultLanguage: string;   // per hint ASR (es. 'Italian'); se non valorizzato usa default modello
   ttsProvider: 'local' | 'api';  // default: 'local'
   exportFormats: ('wav' | 'mp3')[];
   exportMp3Bitrate: number;  // default: 192

@@ -26,3 +26,25 @@ class HealthResponse(BaseModel):
     )
     models: list[ModelStatus] = Field(description="Status of each required model")
     models_dir: str = Field(description="Base directory for model storage")
+
+
+class TranscribeResponse(BaseModel):
+    """Response schema for POST /transcribe."""
+
+    text: str = Field(description="Full transcription text")
+    language: str = Field(
+        description=(
+            "Normalized language code (ISO-like lower-case code such as 'it'/'en', "
+            "or 'unknown')"
+        ),
+        pattern=r"^[a-z]{2,3}$|^unknown$",
+    )
+    inference_time_seconds: float = Field(
+        description="Model inference latency in seconds",
+        ge=0,
+    )
+    audio_duration_seconds: float = Field(
+        description="Input audio duration in seconds",
+        gt=0,
+    )
+    model_used: str = Field(description="Model identifier used for transcription")

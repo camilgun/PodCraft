@@ -9,6 +9,8 @@ from pathlib import Path
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.lib.language import is_supported_asr_language_hint
+
 
 def _find_monorepo_root() -> Path:
     """Walk up from this file to find the monorepo root (contains turbo.json)."""
@@ -49,6 +51,12 @@ class Settings(BaseSettings):
     ml_host: str = Field(default="127.0.0.1", description="ML service bind host")
     ml_port: int = Field(default=5001, description="ML service bind port")
     log_level: str = Field(default="info", description="Logging level")
+    asr_default_language: str | None = Field(
+        default=None,
+        description=(
+            "Optional default ASR language hint when request does not provide one."
+        ),
+    )
 
     # Model IDs — configurable to swap variants (e.g. bf16 → 8bit)
     asr_model_id: str = Field(default="mlx-community/Qwen3-ASR-1.7B-bf16")
@@ -59,6 +67,24 @@ class Settings(BaseSettings):
     @classmethod
     def expand_tilde(cls, v: str | Path) -> Path:
         return Path(str(v)).expanduser()
+
+    @field_validator("asr_default_language", mode="before")
+    @classmethod
+    def validate_asr_default_language(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+
+        normalized = v.strip()
+        if not normalized:
+            return None
+
+        if not is_supported_asr_language_hint(normalized):
+            raise ValueError(
+                "ASR_DEFAULT_LANGUAGE must be a supported ASR language hint "
+                "(for example: Italian, English, it, en)"
+            )
+
+        return normalized
 
     def get_model_registry(self) -> dict[str, ModelInfo]:
         """Build model registry from current settings."""

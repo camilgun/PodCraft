@@ -83,11 +83,12 @@ podcraft/
 
 ---
 
-### Task 1.3 — Spike ASR: trascrivere una registrazione reale
+### Task 1.3 — Spike ASR: trascrivere una registrazione reale ✅
 
 **Cosa fare:**
 - Implementare `POST /transcribe` nel ML service:
   - Accetta un file audio (multipart)
+  - Accetta opzionalmente `language` (multipart) come hint lingua
   - Carica Qwen3-ASR (lazy load, prima invocazione lenta poi cache)
   - Restituisce `{ text, language, duration_ms }`
 - Testare con un file reale da `/Users/iubenda/registrazioni`
@@ -104,17 +105,17 @@ class TranscribeResponse(BaseModel):
 ```
 
 **Cosa valutare (checklist da compilare):**
-- [ ] Il transcript italiano è comprensibile e accurato?
-- [ ] I filler words (ehm, allora, cioè) vengono trascritti?
-- [ ] Tempo di inference per 1 min di audio: _____ secondi
-- [ ] Tempo di inference per 10 min di audio: _____ secondi
-- [ ] RAM picco durante inference: _____ GB
-- [ ] Errori o crash? Descrizione: _____
+- [x] Il transcript italiano è comprensibile e accurato? (Sì, con piccole imprecisioni)
+- [x] I filler words (ehm, allora, cioè) vengono trascritti? (Parzialmente: forte su "cioè", debole su "ehm/allora")
+- [x] Tempo di inference per 1 min di audio: 2.294 secondi (warm), 5.705 secondi (cold)
+- [x] Tempo di inference per 10 min di audio: 34.480 secondi
+- [x] RAM picco durante inference: 3.780 GB (RSS processo)
+- [x] Errori o crash? Descrizione: nessun crash endpoint durante benchmark; crash MLX solo in sandbox isolata
 
 **Decisione da prendere dopo il test:**
 - ✅ Qualità OK → si conferma Qwen3-ASR, si procede
-- ⚠️ Qualità mediocre → si testa il modello 1.7B
-- ❌ Qualità scarsa o crash → si testa Whisper-large-v3-turbo via mlx-audio come fallback
+- ⚠️ Qualità mediocre → si confronta con Whisper-large-v3-turbo via mlx-audio
+- ❌ Qualità scarsa o crash → si passa a Whisper-large-v3-turbo come fallback
 
 ---
 
@@ -299,11 +300,12 @@ Al termine dello sprint, compilare e aggiornare la Source of Truth:
 ## Risultati Spike ML (Sprint 1)
 
 ### ASR (Qwen3-ASR)
-- Modello usato: 0.6B / 1.7B
-- Qualità transcript IT: [1-5] + note
-- Performance: X sec per min di audio
-- RAM picco: X GB
-- Decisione: ✅ Confermato / 🔄 Switch a ______
+- Modello usato: 1.7B (`mlx-community/Qwen3-ASR-1.7B-bf16`)
+- Hint lingua: `language` opzionale su `/transcribe`; fallback opzionale via env `ASR_DEFAULT_LANGUAGE` (se assente usa default modello)
+- Qualità transcript IT: 4/5 — comprensibile e vicina alla baseline Whisper, con qualche imprecisione lessicale
+- Performance: 2.28 sec/min (warm su audio da 1 min), 3.38 sec/min (audio da 10 min), 5.66 sec/min (cold start)
+- RAM picco: 3.78 GB (RSS processo ML osservato)
+- Decisione: ✅ Confermato
 
 ### Alignment (Qwen3-ForcedAligner)
 - Precisione timestamp: [1-5] + note
