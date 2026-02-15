@@ -1,2 +1,7 @@
 .old/
 old/
+node_modules/
+.turbo/
+dist/
+coverage/
+.DS_Store

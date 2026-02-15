@@ -21,21 +21,21 @@
 - Configurare TypeScript `strict: true` in tutti i package con `tsconfig.base.json` condiviso
 - Setup linting (ESLint + Prettier) con config condivisa
 - Setup Vitest config condivisa
-- Creare `scripts/dev.sh` che avvia frontend + backend in parallelo
+- Configurare Turborepo per orchestrare dev mode di tutti i servizi
+- Baseline runtime: Node 24 LTS + pnpm 10.29.3
 
 **Struttura risultante:**
 ```
 podcraft/
 ├── package.json (workspaces)
+├── pnpm-workspace.yaml
 ├── turbo.json
 ├── tsconfig.base.json
 ├── apps/
 │   ├── web/          (Vite + React 19, conferma che builda)
 │   └── server/       (Hono app con health check GET /)
-├── packages/
-│   └── shared/       (package con un tipo esportato, conferma import cross-workspace)
-└── scripts/
-    └── dev.sh
+└── packages/
+    └── shared/       (package con un tipo esportato, conferma import cross-workspace)
 ```
 
 **Criterio di completamento:**
@@ -57,7 +57,7 @@ podcraft/
   - `mlx-community/Qwen3-ASR-0.6B-8bit` (usiamo il piccolo per lo spike, poi si scala)
   - `mlx-community/Qwen3-ForcedAligner-0.6B-8bit`
   - `mlx-community/Qwen3-TTS-12Hz-0.6B-Base-bf16`
-- Aggiornare `dev.sh` per avviare anche il ML service
+- Configurare Turborepo per includere il ML service nel comando `pnpm dev`
 
 **Nota sui modelli per lo spike**: partiamo con i modelli 0.6B per velocità di download e test. Se la qualità è sufficiente, rimaniamo su quelli. Se no, si scala a 1.7B (il Mac li regge).
 

@@ -1,0 +1,35 @@
+:root {
+  color-scheme: light;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+}
+
+.card {
+  width: min(560px, 100%);
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 1.5rem;
+  box-shadow: 0 12px 30px rgba(17, 24, 39, 0.08);
+}
+
+h1 {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+}
+
+p {
+  margin: 0.5rem 0;
+}

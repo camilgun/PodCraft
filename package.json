@@ -1,0 +1,38 @@
+{
+  "name": "podcraft",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.29.3",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "preinstall": "node -e \"const ua=process.env.npm_config_user_agent||''; if(!ua.includes('pnpm/10.29.3')){console.error('Use pnpm 10.29.3'); process.exit(1)}\"",
+    "dev": "turbo run dev --parallel --filter=@podcraft/web --filter=@podcraft/server",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck && pnpm run typecheck:tooling",
+    "typecheck:tooling": "tsc --project tsconfig.json --noEmit",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.20.0",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.20.0",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.18",
+    "globals": "^16.0.0",
+    "prettier": "^3.5.3",
+    "turbo": "^2.5.8",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.24.1",
+    "vitest": "^3.2.4"
+  }
+}

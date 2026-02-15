@@ -314,8 +314,10 @@ interface Chapter {
 ```
 podcraft/
 ├── package.json                  # workspace root
+├── pnpm-workspace.yaml           # workspace discovery per pnpm
 ├── turbo.json                    # Turborepo config
 ├── tsconfig.base.json
+├── .tool-versions                # runtime Node (asdf)
 ├── .env.example                  # CLAUDE_API_KEY, RECORDINGS_DIR, etc.
 │
 ├── apps/
@@ -400,8 +402,8 @@ podcraft/
 │
 └── scripts/
     ├── setup.sh                  # Bootstrap: installa deps, scarica modelli, init DB
-    ├── download-models.sh        # Scarica pesi MLX da HuggingFace
-    └── dev.sh                    # Avvia tutti i servizi in parallelo
+    └── download-models.sh        # Scarica pesi MLX da HuggingFace
+    # Dev orchestration: usare `pnpm dev` (gestito da Turborepo)
 ```
 
 ---
