@@ -525,7 +525,7 @@ Pipeline asincrona gestita da BullMQ. Ogni step è un job separato.
 - Stato → `TRANSCRIBING` → `TRANSCRIBED`
 
 ### Step 3 — Forced Alignment (automatico dopo Step 2)
-- Job `align`: invia audio + testo a ML Service → Qwen3-ForcedAligner-0.6B
+- Job `align`: invia audio + testo (+ `language` hint opzionale) a ML Service → Qwen3-ForcedAligner-0.6B
 - Output: timestamps word-level per ogni segmento
 - Si concatena con la trascrizione (non è un step separato lato utente)
 

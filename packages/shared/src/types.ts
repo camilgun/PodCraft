@@ -9,3 +9,15 @@ export interface TranscribeResponse {
   audio_duration_seconds: number;
   model_used: string;
 }
+
+export interface AlignedWord {
+  word: string;
+  start_time: number;
+  end_time: number;
+}
+
+export interface AlignResponse {
+  words: AlignedWord[];
+  inference_time_seconds: number;
+  model_used: string;
+}

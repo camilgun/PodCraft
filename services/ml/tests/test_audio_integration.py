@@ -116,11 +116,39 @@ class _FakeModel:
         return _FakeOutput(text="ciao integrazione", language="it")
 
 
+@dataclass
+class _FakeAlignItem:
+    text: str
+    start_time: float
+    end_time: float
+
+
+@dataclass
+class _FakeAlignResult:
+    items: list[_FakeAlignItem]
+
+
+class _FakeAlignModel:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+        self.audio_paths: list[str] = []
+
+    def generate(self, audio_path: str, *, text: str, language: str) -> _FakeAlignResult:
+        self.audio_paths.append(audio_path)
+        self.calls.append({"text": text, "language": language})
+        return _FakeAlignResult(
+            items=[
+                _FakeAlignItem(text="ciao", start_time=0.1, end_time=0.3),
+                _FakeAlignItem(text="integrazione", start_time=0.35, end_time=0.8),
+            ]
+        )
+
+
 @requires_ffmpeg
 def test_transcribe_uses_real_audio_preprocessing_with_mock_model(tmp_path: Path) -> None:
     settings = Settings(
         hf_home=tmp_path / "models",
-        asr_default_language=None,
+        asr_default_language="Italian",
     )
     fake_model = _FakeModel()
 
@@ -151,6 +179,49 @@ def test_transcribe_uses_real_audio_preprocessing_with_mock_model(tmp_path: Path
     assert data["inference_time_seconds"] >= 0
     assert data["model_used"] == settings.asr_model_id
     assert len(fake_model.calls) == 1
-    assert "language" not in fake_model.calls[0]
+    assert fake_model.calls[0]["language"] == "Italian"
+    assert len(fake_model.audio_paths) == 1
+    assert Path(fake_model.audio_paths[0]).name == "normalized.wav"
+
+
+@requires_ffmpeg
+def test_align_uses_real_audio_preprocessing_with_mock_model(tmp_path: Path) -> None:
+    settings = Settings(
+        hf_home=tmp_path / "models",
+        asr_default_language="Italian",
+    )
+    fake_model = _FakeAlignModel()
+
+    input_path = tmp_path / "align-input.wav"
+    _create_wav_file(
+        input_path,
+        duration_seconds=0.9,
+        sample_rate=44_100,
+        channels=2,
+    )
+    payload = input_path.read_bytes()
+
+    with (
+        patch("app.routers.align.get_settings", return_value=settings),
+        patch("app.routers.align.get_aligner_model", return_value=fake_model),
+    ):
+        client = TestClient(app)
+        response = client.post(
+            "/align",
+            files={"file": ("align-input.wav", payload, "audio/wav")},
+            data={"text": "ciao integrazione", "language": "it"},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["model_used"] == settings.aligner_model_id
+    assert data["inference_time_seconds"] >= 0
+    assert len(data["words"]) == 2
+    assert data["words"][0]["word"] == "ciao"
+    assert data["words"][0]["start_time"] == 0.1
+    assert data["words"][1]["word"] == "integrazione"
+    assert len(fake_model.calls) == 1
+    assert fake_model.calls[0]["text"] == "ciao integrazione"
+    assert fake_model.calls[0]["language"] == "Italian"
     assert len(fake_model.audio_paths) == 1
     assert Path(fake_model.audio_paths[0]).name == "normalized.wav"

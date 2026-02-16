@@ -51,10 +51,9 @@ class Settings(BaseSettings):
     ml_host: str = Field(default="127.0.0.1", description="ML service bind host")
     ml_port: int = Field(default=5001, description="ML service bind port")
     log_level: str = Field(default="info", description="Logging level")
-    asr_default_language: str | None = Field(
-        default=None,
+    asr_default_language: str = Field(
         description=(
-            "Optional default ASR language hint when request does not provide one."
+            "Required default ASR language hint when request does not provide one."
         ),
     )
 
@@ -70,13 +69,13 @@ class Settings(BaseSettings):
 
     @field_validator("asr_default_language", mode="before")
     @classmethod
-    def validate_asr_default_language(cls, v: str | None) -> str | None:
+    def validate_asr_default_language(cls, v: str | None) -> str:
         if v is None:
-            return None
+            raise ValueError("ASR_DEFAULT_LANGUAGE is required")
 
         normalized = v.strip()
         if not normalized:
-            return None
+            raise ValueError("ASR_DEFAULT_LANGUAGE cannot be blank")
 
         if not is_supported_asr_language_hint(normalized):
             raise ValueError(

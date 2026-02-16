@@ -9,6 +9,7 @@ from pathlib import Path
 from fastapi import FastAPI
 
 from app.config import NISQA_LABEL, get_settings
+from app.routers.align import router as align_router
 from app.routers.asr import router as asr_router
 from app.schemas import HealthResponse, ModelStatus
 
@@ -83,6 +84,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.include_router(asr_router)
+app.include_router(align_router)
 
 
 @app.get("/health", response_model=HealthResponse)

@@ -11,7 +11,10 @@ from app.main import app
 
 def _make_settings(tmp_path: Path) -> Settings:
     """Create settings pointing to a temporary directory."""
-    return Settings(hf_home=tmp_path / "models")
+    return Settings(
+        hf_home=tmp_path / "models",
+        asr_default_language="English",
+    )
 
 
 def test_health_returns_200(tmp_path: Path) -> None:

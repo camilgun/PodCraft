@@ -20,7 +20,7 @@ def _make_settings(tmp_path: Path) -> Settings:
     """Create settings pointing to a temporary models directory."""
     return Settings(
         hf_home=tmp_path / "models",
-        asr_default_language=None,
+        asr_default_language="English",
     )
 
 
@@ -77,7 +77,7 @@ def test_transcribe_returns_200_with_expected_schema(tmp_path: Path) -> None:
     assert isinstance(data["inference_time_seconds"], float)
     assert data["audio_duration_seconds"] == 60.0
     assert data["model_used"] == settings.asr_model_id
-    assert "language" not in fake_model.calls[0]
+    assert fake_model.calls[0]["language"] == "English"
 
 
 def test_transcribe_uses_explicit_language_hint(tmp_path: Path) -> None:
@@ -171,7 +171,7 @@ def test_transcribe_normalizes_detected_language_name_to_code(tmp_path: Path) ->
     assert response.json()["language"] == "it"
 
 
-def test_transcribe_returns_unknown_language_without_hint_or_detection(
+def test_transcribe_returns_default_language_without_detection(
     tmp_path: Path,
 ) -> None:
     settings = _make_settings(tmp_path)
@@ -190,7 +190,7 @@ def test_transcribe_returns_unknown_language_without_hint_or_detection(
         )
 
     assert response.status_code == 200
-    assert response.json()["language"] == "unknown"
+    assert response.json()["language"] == "en"
 
 
 def test_transcribe_returns_400_for_invalid_audio(tmp_path: Path) -> None:

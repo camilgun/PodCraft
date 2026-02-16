@@ -3,7 +3,7 @@
 These mirror the Zod schemas in packages/shared where applicable.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ModelStatus(BaseModel):
@@ -48,3 +48,35 @@ class TranscribeResponse(BaseModel):
         gt=0,
     )
     model_used: str = Field(description="Model identifier used for transcription")
+
+
+class AlignedWord(BaseModel):
+    """A single aligned word with start/end times in seconds."""
+
+    word: str = Field(description="Aligned word")
+    start_time: float = Field(
+        description="Word start time in seconds",
+        ge=0,
+    )
+    end_time: float = Field(
+        description="Word end time in seconds",
+        ge=0,
+    )
+
+    @model_validator(mode="after")
+    def validate_timing(self) -> "AlignedWord":
+        """Ensure timestamps are monotonic for each word."""
+        if self.end_time < self.start_time:
+            raise ValueError("end_time must be greater than or equal to start_time")
+        return self
+
+
+class AlignResponse(BaseModel):
+    """Response schema for POST /align."""
+
+    words: list[AlignedWord] = Field(description="Word-level aligned timestamps")
+    inference_time_seconds: float = Field(
+        description="Model inference latency in seconds",
+        ge=0,
+    )
+    model_used: str = Field(description="Model identifier used for alignment")

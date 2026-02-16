@@ -119,11 +119,11 @@ class TranscribeResponse(BaseModel):
 
 ---
 
-### Task 1.4 — Spike Alignment: timestamps word-level
+### Task 1.4 — Spike Alignment: timestamps word-level ✅
 
 **Cosa fare:**
 - Implementare `POST /align` nel ML service:
-  - Accetta audio + testo (dal task 1.3)
+  - Accetta audio + testo (dal task 1.3) + `language` opzionale
   - Qwen3-ForcedAligner produce timestamps per ogni parola
   - Restituisce array di `{ word, start_time, end_time }`
 - Testare: verificare che i timestamp corrispondano all'audio reale
@@ -142,10 +142,10 @@ class AlignResponse(BaseModel):
 ```
 
 **Cosa valutare:**
-- [ ] I timestamp sono accurati? (ascoltare audio a timestamp X, coincide con la parola?)
-- [ ] Funziona con il testo italiano prodotto da Qwen3-ASR?
-- [ ] Tempo di inference: _____ secondi
-- [ ] RAM aggiuntiva: _____ GB
+- [x] I timestamp sono accurati? (verifica proxy su 5 parole: 5/5 match via micro-clip + ASR)
+- [x] Funziona con il testo italiano prodotto da Qwen3-ASR? (Sì)
+- [x] Tempo di inference: 1.544 secondi su audio da 22.059s (~4.20 sec/min)
+- [x] RAM aggiuntiva: 0.606 GB (delta RSS), picco processo 4.848 GB
 
 **Decisione:**
 - ✅ Preciso → si conferma
@@ -308,9 +308,10 @@ Al termine dello sprint, compilare e aggiornare la Source of Truth:
 - Decisione: ✅ Confermato
 
 ### Alignment (Qwen3-ForcedAligner)
-- Precisione timestamp: [1-5] + note
-- Performance: X sec per min di audio
-- Decisione: ✅ Confermato / 🔄 Switch a ______
+- Precisione timestamp: 4/5 — output coerente e monotono; verifica proxy 5/5 su prime parole
+- Performance: 4.20 sec/min (1.544s su audio da 22.059s)
+- RAM (delta/peak): +0.606 GB / 4.848 GB
+- Decisione: ✅ Confermato
 
 ### TTS (Qwen3-TTS)
 - Qualità voice clone: [1-5] + note
