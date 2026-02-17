@@ -1,0 +1,11 @@
+"""Shared inference concurrency limits for ML routes."""
+
+from __future__ import annotations
+
+import asyncio
+
+ASR_MAX_CONCURRENT_INFERENCES = 1
+TTS_MAX_CONCURRENT_INFERENCES = 1
+
+ASR_INFERENCE_SEMAPHORE = asyncio.Semaphore(ASR_MAX_CONCURRENT_INFERENCES)
+TTS_INFERENCE_SEMAPHORE = asyncio.Semaphore(TTS_MAX_CONCURRENT_INFERENCES)

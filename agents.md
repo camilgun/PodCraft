@@ -54,6 +54,7 @@ podcraft/
 └── services/ml/app/       # Python ML service
     ├── routers/           # FastAPI endpoints
     ├── models/            # Model wrappers
+    ├── lib/               # Audio, language, memory utils
     └── schemas.py         # Pydantic schemas
 ```
 

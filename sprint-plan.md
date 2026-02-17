@@ -153,15 +153,25 @@ class AlignResponse(BaseModel):
 
 ---
 
-### Task 1.5 — Spike TTS: voice clone
+### Task 1.5 — Spike TTS: voice clone ✅ (endpoint implementato, spike da eseguire con modello scaricato)
 
 **Cosa fare:**
-- Implementare `POST /synthesize` nel ML service:
-  - Accetta: `{ text, reference_audio (3s clip), language }`
+- ✅ Implementare `POST /synthesize` nel ML service:
+  - Accetta: `{ text, reference_audio (3s clip), reference_text?, language }`
+  - Vincolo hard: `reference_audio` deve avere durata minima di 3.0 secondi
+  - `reference_text` opzionale: se assente/vuoto viene auto-trascritto con Qwen3-ASR e usato come `ref_text` per ICL voice cloning
   - Qwen3-TTS genera audio con voce clonata
-  - Restituisce il file audio WAV
+  - Restituisce il file audio WAV (binary response, metriche negli header)
 - Testare: estrarre 3 secondi dalla registrazione reale, clonare la voce, generare una frase nuova
 - Confronto A/B: ascoltare la voce originale vs TTS clonato
+
+**Implementazione:**
+- `app/routers/tts.py` — POST /synthesize (multipart: text, reference_audio, reference_text, language)
+- `app/models/tts_model.py` — lazy-cached model loader con thread-safe double-checked locking
+- `app/lib/language.py` — risoluzione lingua condivisa ASR + TTS (TTS: 10 lingue supportate)
+- `app/lib/audio.py` — `normalize_audio_for_tts_reference()` (mono 24kHz WAV)
+- Response: WAV binary + custom headers (X-Inference-Time-Seconds, X-Audio-Duration-Seconds, X-Model-Used, X-Peak-Memory-GB, X-Delta-Memory-GB)
+- 13 unit test + 12 test lingua = 25 nuovi test, tutti passano (73 totali)
 
 **Cosa valutare:**
 - [ ] La voce clonata è riconoscibile come la stessa persona?

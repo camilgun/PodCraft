@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from app.config import NISQA_LABEL, get_settings
 from app.routers.align import router as align_router
 from app.routers.asr import router as asr_router
+from app.routers.tts import router as tts_router
 from app.schemas import HealthResponse, ModelStatus
 
 logger = logging.getLogger("podcraft.ml")
@@ -85,6 +86,7 @@ app = FastAPI(
 )
 app.include_router(asr_router)
 app.include_router(align_router)
+app.include_router(tts_router)
 
 
 @app.get("/health", response_model=HealthResponse)

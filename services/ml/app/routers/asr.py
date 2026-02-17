@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import tempfile
@@ -20,6 +19,7 @@ from app.lib.audio import (
     normalize_audio_for_asr,
     probe_audio_duration_seconds,
 )
+from app.lib.inference_limits import ASR_INFERENCE_SEMAPHORE
 from app.lib.language import (
     is_supported_asr_language_hint,
     normalize_asr_response_language,
@@ -34,9 +34,7 @@ logger = logging.getLogger("podcraft.ml")
 router = APIRouter(tags=["asr"])
 
 READ_CHUNK_SIZE = 1024 * 1024
-MAX_CONCURRENT_INFERENCES = 1
 MEMORY_SAMPLE_INTERVAL_SECONDS = 0.5
-INFERENCE_SEMAPHORE = asyncio.Semaphore(MAX_CONCURRENT_INFERENCES)
 
 
 def _log_transcribe_status(
@@ -146,7 +144,7 @@ async def transcribe_audio(
         await run_in_threadpool(normalize_audio_for_asr, upload_path, normalized_path)
         model = await run_in_threadpool(get_asr_model, settings)
 
-        async with INFERENCE_SEMAPHORE:
+        async with ASR_INFERENCE_SEMAPHORE:
             inference_started = time.perf_counter()
             async with MemorySampler(
                 sample_interval_seconds=MEMORY_SAMPLE_INTERVAL_SECONDS

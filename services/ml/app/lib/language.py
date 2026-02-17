@@ -1,6 +1,18 @@
-"""Language normalization utilities for ASR hints and API responses."""
+"""Language normalization utilities for ASR and TTS.
 
-_ASR_LANGUAGE_CODE_TO_PROMPT: dict[str, str] = {
+Single source of truth for language mappings.  Each model supports a
+different subset — ASR covers 34 languages, TTS covers 10 — but all
+aliases and ISO codes are resolved from the same master tables.
+"""
+
+from __future__ import annotations
+
+# ---------------------------------------------------------------------------
+# Master data — shared by ASR, TTS, and future models
+# ---------------------------------------------------------------------------
+
+# ISO code -> canonical English name (Title Case)
+_LANGUAGE_CODE_TO_NAME: dict[str, str] = {
     "ar": "Arabic",
     "cs": "Czech",
     "da": "Danish",
@@ -33,7 +45,9 @@ _ASR_LANGUAGE_CODE_TO_PROMPT: dict[str, str] = {
     "zh": "Chinese",
 }
 
-_ASR_LANGUAGE_ALIAS_TO_CODE: dict[str, str] = {
+# Every known alias (lower-cased) -> ISO code.
+# Includes ISO codes themselves, English names, and native-language aliases.
+_LANGUAGE_ALIAS_TO_CODE: dict[str, str] = {
     "ar": "ar",
     "arabic": "ar",
     "cantonese": "yue",
@@ -43,6 +57,7 @@ _ASR_LANGUAGE_ALIAS_TO_CODE: dict[str, str] = {
     "da": "da",
     "danish": "da",
     "de": "de",
+    "deutsch": "de",
     "dutch": "nl",
     "el": "el",
     "en": "en",
@@ -96,11 +111,40 @@ _ASR_LANGUAGE_ALIAS_TO_CODE: dict[str, str] = {
     "zh": "zh",
 }
 
+# ---------------------------------------------------------------------------
+# Per-model supported subsets
+# ---------------------------------------------------------------------------
+
+_ASR_SUPPORTED_CODES: frozenset[str] = frozenset(_LANGUAGE_CODE_TO_NAME)
+
+_TTS_SUPPORTED_CODES: frozenset[str] = frozenset(
+    {"zh", "en", "de", "it", "pt", "es", "ja", "ko", "fr", "ru"}
+)
+
+
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
+
+def _alias_to_code(language: str) -> str | None:
+    """Resolve a user-facing string to an ISO code, or ``None``."""
+    return _LANGUAGE_ALIAS_TO_CODE.get(language.strip().lower())
+
+
+# ---------------------------------------------------------------------------
+# ASR-specific functions
+# ---------------------------------------------------------------------------
+
+def is_supported_asr_language_hint(language: str) -> bool:
+    """Return whether *language* resolves to a code in the ASR model's set."""
+    code = _alias_to_code(language)
+    return code is not None and code in _ASR_SUPPORTED_CODES
+
 
 def resolve_asr_prompt_language(
     language: str | None, *, default_language: str | None
 ) -> str | None:
-    """Resolve request/default language hint to canonical prompt name expected by Qwen."""
+    """Resolve request/default language hint to canonical prompt name expected by Qwen ASR."""
     explicit = (language or "").strip()
     fallback = (default_language or "").strip()
     selected = explicit or fallback
@@ -110,17 +154,11 @@ def resolve_asr_prompt_language(
     if selected.lower() == "unknown":
         return None
 
-    code = _ASR_LANGUAGE_ALIAS_TO_CODE.get(selected.lower())
+    code = _alias_to_code(selected)
     if code is None:
         return selected
 
-    return _ASR_LANGUAGE_CODE_TO_PROMPT.get(code, selected)
-
-
-def is_supported_asr_language_hint(language: str) -> bool:
-    """Return whether a request language hint is supported by known aliases/codes."""
-    value = language.strip().lower()
-    return value in _ASR_LANGUAGE_ALIAS_TO_CODE
+    return _LANGUAGE_CODE_TO_NAME.get(code, selected)
 
 
 def normalize_asr_response_language(language: str | None) -> str | None:
@@ -133,7 +171,7 @@ def normalize_asr_response_language(language: str | None) -> str | None:
     if lowered == "unknown":
         return "unknown"
 
-    code = _ASR_LANGUAGE_ALIAS_TO_CODE.get(lowered)
+    code = _LANGUAGE_ALIAS_TO_CODE.get(lowered)
     if code is not None:
         return code
 
@@ -141,3 +179,33 @@ def normalize_asr_response_language(language: str | None) -> str | None:
         return lowered
 
     return None
+
+
+# ---------------------------------------------------------------------------
+# TTS-specific functions
+# ---------------------------------------------------------------------------
+
+def is_supported_tts_language(language: str) -> bool:
+    """Return whether *language* resolves to a code in the TTS model's set."""
+    code = _alias_to_code(language)
+    return code is not None and code in _TTS_SUPPORTED_CODES
+
+
+def resolve_tts_lang_code(language: str | None) -> str:
+    """Resolve a user-facing language hint to a Qwen3-TTS ``lang_code``.
+
+    Returns ``"auto"`` if *language* is ``None`` or empty.
+    Raises ``ValueError`` if *language* is provided but not in the TTS set.
+    """
+    if language is None:
+        return "auto"
+    value = language.strip().lower()
+    if not value:
+        return "auto"
+
+    code = _alias_to_code(value)
+    if code is None or code not in _TTS_SUPPORTED_CODES:
+        raise ValueError(f"Unsupported TTS language: {language}")
+
+    # TTS model expects lowercase English name as lang_code
+    return _LANGUAGE_CODE_TO_NAME[code].lower()

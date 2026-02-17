@@ -392,12 +392,16 @@ podcraft/
 │       │   │   ├── align.py      # POST /align
 │       │   │   ├── tts.py        # POST /synthesize
 │       │   │   └── quality.py    # POST /assess-quality
-│       │   └── models/           # Model loading & inference wrappers
-│       │       ├── base.py       # Provider interfaces
-│       │       ├── asr_model.py
-│       │       ├── aligner_model.py
-│       │       ├── tts_model.py
-│       │       └── quality_model.py
+│       │   ├── models/           # Model loading & inference wrappers
+│       │   │   ├── base.py       # Provider interfaces
+│       │   │   ├── asr_model.py
+│       │   │   ├── aligner_model.py
+│       │   │   ├── tts_model.py
+│       │   │   └── quality_model.py
+│       │   └── lib/              # Shared utilities
+│       │       ├── audio.py      # ffprobe/ffmpeg helpers
+│       │       ├── language.py   # ASR + TTS language normalization
+│       │       └── memory.py     # Memory sampling
 │       ├── pyproject.toml
 │       ├── package.json          # Turborepo integration wrapper
 │       ├── .python-version       # Python 3.11 pin per uv
@@ -553,6 +557,9 @@ Due job in parallelo:
 - Job `export`: esegue le edit accettate
 - FFmpeg: tagli non-distruttivi, crossfade, normalizzazione loudness
 - Per segmenti TTS: genera audio con Qwen3-TTS (voice clone da 3s sample della registrazione)
+  - Vincolo endpoint: `reference_audio` minimo 3.0 secondi (altrimenti 400 Bad Request)
+  - `reference_text` opzionale: se assente/vuoto il ML service auto-trascrive il clip (Qwen3-ASR) e usa la trascrizione come `ref_text` per ICL voice cloning
+  - ML endpoint `POST /synthesize`: `text`, `reference_audio`, `reference_text` (opzionale), `language` (opzionale)
 - Crossfade automatico ai bordi delle inserzioni TTS
 - Output: WAV + MP3
 - Stato → `EXPORTING` → `COMPLETED`

@@ -90,3 +90,34 @@ def normalize_audio_for_asr(input_path: Path, output_path: Path) -> None:
 
     if not output_path.exists():
         raise AudioInfrastructureError("ffmpeg did not produce normalized output")
+
+
+def normalize_audio_for_tts_reference(input_path: Path, output_path: Path) -> None:
+    """Normalize reference audio to mono 24 kHz WAV for TTS voice cloning.
+
+    Higher sample rate than ASR normalization (24 kHz vs 16 kHz) to preserve
+    voice characteristics for cloning.  The TTS model resamples internally to
+    its native codec rate.
+    """
+    result = _run_command(
+        [
+            "ffmpeg",
+            "-y",
+            "-loglevel",
+            "error",
+            "-i",
+            str(input_path),
+            "-ac",
+            "1",
+            "-ar",
+            "24000",
+            str(output_path),
+        ]
+    )
+
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or "ffmpeg failed"
+        raise AudioInputError(stderr)
+
+    if not output_path.exists():
+        raise AudioInfrastructureError("ffmpeg did not produce normalized reference audio")
