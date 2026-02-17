@@ -4,6 +4,7 @@ import logging
 import sys
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -44,10 +45,9 @@ def _check_model_availability(model_dir_name: str, hf_home: Path) -> ModelStatus
 def _check_nisqa_availability() -> ModelStatus:
     """Check NISQA availability (auto-downloads via torchmetrics on first use)."""
     try:
-        import torchmetrics.audio  # noqa: F401
-
+        version("torchmetrics")
         available = True
-    except ImportError:
+    except PackageNotFoundError:
         available = False
 
     return ModelStatus(
