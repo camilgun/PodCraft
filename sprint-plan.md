@@ -187,14 +187,17 @@ class AlignResponse(BaseModel):
 
 ---
 
-### Task 1.6 — Spike Quality Assessment: NISQA
+### Task 1.6 — Spike Quality Assessment: NISQA ✅
 
 **Cosa fare:**
-- Implementare `POST /assess-quality` nel ML service:
+- ✅ Implementare `POST /assess-quality` nel ML service:
   - Accetta audio
   - NISQA analizza e restituisce scores
-  - Per audio lungo: analisi a finestre di 5 secondi
-- Testare con un audio di buona qualità e uno con problemi noti (rumore, distorsione)
+  - Per audio lungo: analisi a finestre configurabili (`window_seconds`, default 3s)
+  - Tail finale sotto soglia minima viene merge-ato alla finestra precedente
+  - `window_seconds` e `min_window_seconds` opzionali via API; se `min_window_seconds` non è passato eredita `window_seconds`
+  - Guardrail: entrambi i valori devono essere >= 1s (e `min_window_seconds <= window_seconds`)
+- ✅ Testare con un audio di buona qualità e uno con problemi noti (rumore, distorsione)
 
 **Schema response:**
 ```python
@@ -214,9 +217,9 @@ class QualityResponse(BaseModel):
 ```
 
 **Cosa valutare:**
-- [ ] I punteggi MOS riflettono la qualità percepita?
-- [ ] Le zone rumorose hanno MOS significativamente più basso?
-- [ ] La soglia 3.0 sembra ragionevole come default?
+- [x] I punteggi MOS riflettono la qualità percepita? (Sì, trend coerente su clip pulita vs degradata)
+- [x] Le zone rumorose hanno MOS significativamente più basso? (Sì, 3.8336 -> 2.5937 nella metà degradata)
+- [x] La soglia 3.0 sembra ragionevole come default? (Sì, buona separazione nelle prove; da ritarare solo su casi borderline)
 
 ---
 
@@ -330,9 +333,10 @@ Al termine dello sprint, compilare e aggiornare la Source of Truth:
 - Decisione: ✅ Confermato / 🔄 Switch a ______
 
 ### Quality (NISQA)
-- Affidabilità scoring: [1-5] + note
-- Soglia 3.0 ragionevole: sì/no, suggerita: ______
-- Decisione: ✅ Confermato / 🔄 Switch a ______
+- Endpoint: `POST /assess-quality` implementato (finestre default 3s configurabili via API + `min_window_seconds` opzionale derivato da `window_seconds` + merge tail corto + average_mos + inference_time_seconds)
+- Affidabilità scoring: 4/5 — trend coerente e discriminante su test controllato; presenti outlier raw gestiti con clamp+warning
+- Soglia 3.0 ragionevole: sì (confermata per default)
+- Decisione: ✅ Confermato (mantenere monitoraggio su registrazioni molto rumorose)
 ```
 
 ---

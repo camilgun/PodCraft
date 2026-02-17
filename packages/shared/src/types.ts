@@ -21,3 +21,19 @@ export interface AlignResponse {
   inference_time_seconds: number;
   model_used: string;
 }
+
+export interface QualityWindow {
+  window_start: number;
+  window_end: number;
+  mos: number;
+  noisiness: number;
+  discontinuity: number;
+  coloration: number;
+  loudness: number;
+}
+
+export interface QualityResponse {
+  windows: QualityWindow[];
+  average_mos: number;
+  inference_time_seconds: number;
+}

@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   alignResponseSchema,
   healthResponseSchema,
+  qualityResponseSchema,
+  qualityWindowSchema,
   transcribeResponseSchema,
   type AlignResponseFromSchema,
   type HealthResponseFromSchema,
+  type QualityResponseFromSchema,
+  type QualityWindowFromSchema,
   type TranscribeResponseFromSchema
 } from "./index";
 
@@ -82,6 +86,71 @@ describe("alignResponseSchema", () => {
       ],
       inference_time_seconds: -0.2,
       model_used: "mlx-community/Qwen3-ForcedAligner-0.6B-bf16"
+    });
+
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("qualityWindowSchema", () => {
+  it("accepts a valid quality window payload", () => {
+    const parsed: QualityWindowFromSchema = qualityWindowSchema.parse({
+      window_start: 0,
+      window_end: 5,
+      mos: 3.8,
+      noisiness: 2.4,
+      discontinuity: 2.1,
+      coloration: 2.2,
+      loudness: 3.0
+    });
+
+    expect(parsed.window_start).toBe(0);
+    expect(parsed.window_end).toBe(5);
+    expect(parsed.mos).toBe(3.8);
+  });
+
+  it("rejects invalid quality window payload", () => {
+    const result = qualityWindowSchema.safeParse({
+      window_start: 5,
+      window_end: 4,
+      mos: 6,
+      noisiness: 0,
+      discontinuity: -1,
+      coloration: 2.2,
+      loudness: 3.0
+    });
+
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("qualityResponseSchema", () => {
+  it("accepts a valid quality response payload", () => {
+    const parsed: QualityResponseFromSchema = qualityResponseSchema.parse({
+      windows: [
+        {
+          window_start: 0,
+          window_end: 5,
+          mos: 3.2,
+          noisiness: 2.1,
+          discontinuity: 2.0,
+          coloration: 2.3,
+          loudness: 3.1
+        }
+      ],
+      average_mos: 3.2,
+      inference_time_seconds: 0.72
+    });
+
+    expect(parsed.windows).toHaveLength(1);
+    expect(parsed.average_mos).toBe(3.2);
+  });
+
+  it("rejects invalid quality response payload", () => {
+    const result = qualityResponseSchema.safeParse({
+      windows: [],
+      average_mos: 0.8,
+      inference_time_seconds: -0.1
     });
 
     expect(result.success).toBe(false);

@@ -538,7 +538,14 @@ Due job in parallelo:
 
 **4a — Quality Assessment**
 - Job `quality`: invia audio a ML Service → NISQA v2.0
-- Analisi a finestre di 5 secondi (configurabile)
+- Analisi a finestre configurabili (default 3 secondi; guardrail minimo 1 secondo)
+- Endpoint ML `POST /assess-quality` (multipart `file`) restituisce:
+  - `windows[]` con `window_start`, `window_end`, `mos`, `noisiness`, `discontinuity`, `coloration`, `loudness`
+  - `average_mos`
+  - `inference_time_seconds`
+- Parametri opzionali endpoint:
+  - `window_seconds` (default 3.0)
+  - `min_window_seconds` (se assente, eredita `window_seconds`; vincolo `<= window_seconds`)
 - Segmenti con MOS < 3.0 → flaggati come `LOW_QUALITY`
 
 **4b — LLM Editorial Analysis**

@@ -36,3 +36,28 @@ export const alignResponseSchema = z.object({
 });
 
 export type AlignResponseFromSchema = z.infer<typeof alignResponseSchema>;
+
+export const qualityWindowSchema = z
+  .object({
+    window_start: z.number().nonnegative(),
+    window_end: z.number().nonnegative(),
+    mos: z.number().min(1).max(5),
+    noisiness: z.number().min(1).max(5),
+    discontinuity: z.number().min(1).max(5),
+    coloration: z.number().min(1).max(5),
+    loudness: z.number().min(1).max(5)
+  })
+  .refine((value) => value.window_end >= value.window_start, {
+    message: "window_end must be greater than or equal to window_start",
+    path: ["window_end"]
+  });
+
+export type QualityWindowFromSchema = z.infer<typeof qualityWindowSchema>;
+
+export const qualityResponseSchema = z.object({
+  windows: z.array(qualityWindowSchema).min(1),
+  average_mos: z.number().min(1).max(5),
+  inference_time_seconds: z.number().nonnegative()
+});
+
+export type QualityResponseFromSchema = z.infer<typeof qualityResponseSchema>;

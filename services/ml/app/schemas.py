@@ -80,3 +80,46 @@ class AlignResponse(BaseModel):
         ge=0,
     )
     model_used: str = Field(description="Model identifier used for alignment")
+
+
+class QualityWindow(BaseModel):
+    """Quality scores for one contiguous audio window."""
+
+    window_start: float = Field(
+        description="Window start time in seconds",
+        ge=0,
+    )
+    window_end: float = Field(
+        description="Window end time in seconds",
+        ge=0,
+    )
+    mos: float = Field(description="Mean Opinion Score (overall quality)", ge=1, le=5)
+    noisiness: float = Field(description="Noisiness score", ge=1, le=5)
+    discontinuity: float = Field(description="Discontinuity score", ge=1, le=5)
+    coloration: float = Field(description="Coloration score", ge=1, le=5)
+    loudness: float = Field(description="Loudness score", ge=1, le=5)
+
+    @model_validator(mode="after")
+    def validate_timing(self) -> "QualityWindow":
+        """Ensure each quality window has monotonic boundaries."""
+        if self.window_end < self.window_start:
+            raise ValueError("window_end must be greater than or equal to window_start")
+        return self
+
+
+class QualityResponse(BaseModel):
+    """Response schema for POST /assess-quality."""
+
+    windows: list[QualityWindow] = Field(
+        description="Per-window quality scores",
+        min_length=1,
+    )
+    average_mos: float = Field(
+        description="Average MOS over all windows",
+        ge=1,
+        le=5,
+    )
+    inference_time_seconds: float = Field(
+        description="Model inference latency in seconds",
+        ge=0,
+    )

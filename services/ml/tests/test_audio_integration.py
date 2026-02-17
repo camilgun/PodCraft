@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+import torch
 from fastapi.testclient import TestClient
 
 from app.config import Settings
@@ -144,6 +145,15 @@ class _FakeAlignModel:
         )
 
 
+class _FakeQualityAssessor:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, int]] = []
+
+    def __call__(self, preds: torch.Tensor, fs: int) -> torch.Tensor:
+        self.calls.append({"samples": int(preds.numel()), "sample_rate": fs})
+        return torch.tensor([3.4, 2.1, 2.0, 2.2, 3.0], dtype=torch.float32)
+
+
 @requires_ffmpeg
 def test_transcribe_uses_real_audio_preprocessing_with_mock_model(tmp_path: Path) -> None:
     settings = Settings(
@@ -225,3 +235,40 @@ def test_align_uses_real_audio_preprocessing_with_mock_model(tmp_path: Path) -> 
     assert fake_model.calls[0]["language"] == "Italian"
     assert len(fake_model.audio_paths) == 1
     assert Path(fake_model.audio_paths[0]).name == "normalized.wav"
+
+
+@requires_ffmpeg
+def test_assess_quality_uses_real_audio_preprocessing_with_mock_assessor(
+    tmp_path: Path,
+) -> None:
+    fake_assessor = _FakeQualityAssessor()
+
+    input_path = tmp_path / "quality-input.wav"
+    _create_wav_file(
+        input_path,
+        duration_seconds=0.9,
+        sample_rate=44_100,
+        channels=2,
+    )
+    payload = input_path.read_bytes()
+
+    with patch(
+        "app.routers.quality.get_quality_assessor",
+        return_value=fake_assessor,
+    ):
+        client = TestClient(app)
+        response = client.post(
+            "/assess-quality",
+            files={"file": ("quality-input.wav", payload, "audio/wav")},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["windows"]) == 1
+    assert data["windows"][0]["window_start"] == 0
+    assert data["windows"][0]["window_end"] > 0.8
+    assert abs(data["average_mos"] - 3.4) < 1e-6
+    assert data["inference_time_seconds"] >= 0
+    assert len(fake_assessor.calls) == 1
+    assert fake_assessor.calls[0]["samples"] > 0
+    assert fake_assessor.calls[0]["sample_rate"] == 16_000
