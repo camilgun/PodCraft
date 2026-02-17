@@ -45,6 +45,10 @@ MIN_REFERENCE_DURATION_SECONDS = 3.0
 MAX_TEXT_LENGTH = 5000
 
 
+class TTSOutputError(RuntimeError):
+    """Raised when the TTS model output is structurally invalid."""
+
+
 def _log_synthesize_status(
     *,
     status_value: str,
@@ -149,6 +153,8 @@ def _encode_audio_to_wav_bytes(audio_array: np.ndarray, sample_rate: int) -> byt
     audio = audio_array.astype(np.float32)
     if audio.ndim > 1:
         audio = audio.flatten()
+    if audio.size == 0:
+        raise TTSOutputError("TTS model produced empty audio waveform")
 
     # Normalize to [-1, 1] to prevent clipping
     max_val = np.abs(audio).max()
@@ -321,6 +327,8 @@ async def synthesize_audio(
             raise RuntimeError("TTS produced no audio data")
 
         combined_audio = np.concatenate(audio_parts)
+        if combined_audio.size == 0:
+            raise TTSOutputError("TTS model produced empty audio waveform")
         generated_audio_duration_seconds = float(len(combined_audio)) / sample_rate
 
         # ── Encode to WAV ───────────────────────────────────────────
@@ -406,6 +414,23 @@ async def synthesize_audio(
         )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    except TTSOutputError as exc:
+        total_duration = time.perf_counter() - start_time
+        _log_synthesize_status(
+            status_value="error",
+            duration_seconds=total_duration,
+            error=str(exc),
+            text_length=text_length,
+            reference_duration_seconds=reference_duration_seconds,
+            model_used=settings.tts_model_id,
+            language=lang_code,
+            peak_memory_gb=peak_memory_gb,
+            delta_memory_gb=delta_memory_gb,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc),
         ) from exc
     except HTTPException as exc:

@@ -80,6 +80,33 @@ class _FakeTTSModel:
         )
 
 
+class _FakeEmptyAudioTTSModel(_FakeTTSModel):
+    def generate(
+        self,
+        text: str,
+        ref_audio: str | None = None,
+        ref_text: str | None = None,
+        lang_code: str = "auto",
+        verbose: bool = False,
+        **kwargs: object,
+    ):
+        self.calls.append(
+            {
+                "text": text,
+                "ref_audio": ref_audio,
+                "ref_text": ref_text,
+                "lang_code": lang_code,
+            }
+        )
+        _ = verbose
+        _ = kwargs
+        yield _FakeGenerationResult(
+            audio=np.array([], dtype=np.float32),
+            samples=0,
+            sample_rate=self._sample_rate,
+        )
+
+
 class _FakeMemorySampler:
     def __init__(self, *, sample_interval_seconds: float) -> None:
         self.sample_interval_seconds = sample_interval_seconds
@@ -292,6 +319,23 @@ def test_synthesize_returns_503_for_audio_infrastructure_error(tmp_path: Path) -
 
     assert response.status_code == 503
     assert response.json()["detail"] == "Required binary not found: ffprobe"
+
+
+def test_synthesize_returns_502_for_empty_generated_waveform(tmp_path: Path) -> None:
+    settings = _make_settings(tmp_path)
+    fake_model = _FakeEmptyAudioTTSModel()
+
+    with (
+        patch("app.routers.tts.get_settings", return_value=settings),
+        patch("app.routers.tts.probe_audio_duration_seconds", return_value=3.5),
+        patch("app.routers.tts.normalize_audio_for_tts_reference"),
+        patch("app.routers.tts.get_tts_model", return_value=fake_model),
+    ):
+        client = TestClient(app)
+        response = _post_synthesize(client)
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "TTS model produced empty audio waveform"
 
 
 # ── Memory metrics & caching tests ──────────────────────────────────
