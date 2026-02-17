@@ -403,6 +403,62 @@ def test_synthesize_auto_transcribes_when_reference_text_omitted(
     assert fake_tts.calls[0]["ref_text"] == "trascrizione automatica del clip"
 
 
+def test_synthesize_auto_transcribe_uses_asr_autodetect_without_language(
+    tmp_path: Path,
+) -> None:
+    settings = _make_settings(tmp_path)
+    fake_tts = _FakeTTSModel()
+
+    with (
+        patch("app.routers.tts.get_settings", return_value=settings),
+        patch("app.routers.tts.probe_audio_duration_seconds", return_value=3.5),
+        patch("app.routers.tts.normalize_audio_for_tts_reference"),
+        patch("app.routers.tts.normalize_audio_for_asr"),
+        patch("app.routers.tts.get_asr_model", return_value=object()),
+        patch("app.routers.tts.get_tts_model", return_value=fake_tts),
+        patch(
+            "app.routers.tts._transcribe_reference",
+            return_value="trascrizione automatica del clip",
+        ) as transcribe_reference,
+    ):
+        client = TestClient(app)
+        response = _post_synthesize(client, reference_text=_SENTINEL)
+
+    assert response.status_code == 200
+    assert transcribe_reference.call_count == 1
+    assert transcribe_reference.call_args.kwargs["prompt_language"] is None
+
+
+def test_synthesize_auto_transcribe_uses_explicit_language_hint_for_asr(
+    tmp_path: Path,
+) -> None:
+    settings = _make_settings(tmp_path)
+    fake_tts = _FakeTTSModel()
+
+    with (
+        patch("app.routers.tts.get_settings", return_value=settings),
+        patch("app.routers.tts.probe_audio_duration_seconds", return_value=3.5),
+        patch("app.routers.tts.normalize_audio_for_tts_reference"),
+        patch("app.routers.tts.normalize_audio_for_asr"),
+        patch("app.routers.tts.get_asr_model", return_value=object()),
+        patch("app.routers.tts.get_tts_model", return_value=fake_tts),
+        patch(
+            "app.routers.tts._transcribe_reference",
+            return_value="trascrizione automatica del clip",
+        ) as transcribe_reference,
+    ):
+        client = TestClient(app)
+        response = _post_synthesize(
+            client,
+            reference_text=_SENTINEL,
+            language="it",
+        )
+
+    assert response.status_code == 200
+    assert transcribe_reference.call_count == 1
+    assert transcribe_reference.call_args.kwargs["prompt_language"] == "Italian"
+
+
 def test_synthesize_auto_transcribe_uses_asr_semaphore(tmp_path: Path) -> None:
     settings = _make_settings(tmp_path)
     fake_tts = _FakeTTSModel()

@@ -259,7 +259,8 @@ async def synthesize_audio(
             async with ASR_INFERENCE_SEMAPHORE:
                 asr_model = await run_in_threadpool(get_asr_model, settings)
                 asr_prompt_language = resolve_asr_prompt_language(
-                    language, default_language=settings.asr_default_language
+                    language,
+                    default_language=None,
                 )
                 ref_text = await run_in_threadpool(
                     _transcribe_reference,
