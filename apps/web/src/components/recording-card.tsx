@@ -1,6 +1,6 @@
 import type { MouseEvent, KeyboardEvent } from "react";
 import { useNavigate } from "react-router";
-import type { Recording } from "@podcraft/shared";
+import { canStartTranscription, type Recording } from "@podcraft/shared";
 import {
   Card,
   CardContent,
@@ -47,10 +47,7 @@ export function RecordingCard({
     onTranscribeError(result.error.message);
   }
 
-  const canTranscribe =
-    recording.status === "IMPORTED" ||
-    recording.status === "TRANSCRIBED" ||
-    recording.status === "ERROR";
+  const canTranscribe = canStartTranscription(recording.status);
 
   return (
       <Card

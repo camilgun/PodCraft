@@ -70,7 +70,7 @@ export type {
 } from "./schemas.js";
 
 // ─── State machine ────────────────────────────────────────────────────────────
-export { canTransition, VALID_TRANSITIONS } from "./stateMachine.js";
+export { canTransition, canStartTranscription, VALID_TRANSITIONS } from "./stateMachine.js";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 export {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router";
-import type { Recording } from "@podcraft/shared";
+import { canStartTranscription, type Recording } from "@podcraft/shared";
 import { getRecording, getAudioUrl, triggerTranscribe } from "@/lib/api-client";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -48,10 +48,7 @@ export function RecordingDetailPage() {
   }
 
   const canTranscribe =
-    state.kind === "loaded" &&
-    (state.recording.status === "IMPORTED" ||
-      state.recording.status === "TRANSCRIBED" ||
-      state.recording.status === "ERROR");
+    state.kind === "loaded" && canStartTranscription(state.recording.status);
 
   return (
     <div className="min-h-screen bg-background">

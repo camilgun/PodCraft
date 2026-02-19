@@ -32,3 +32,12 @@ export const VALID_TRANSITIONS: Readonly<
 export function canTransition(from: RecordingStatus, to: RecordingStatus): boolean {
   return VALID_TRANSITIONS[from].includes(to);
 }
+
+/**
+ * Returns true if the user can manually trigger transcription from this status.
+ * Excludes TRANSCRIBING itself (already in progress) even though the state
+ * machine allows a TRANSCRIBING → TRANSCRIBING system-level re-queue.
+ */
+export function canStartTranscription(status: RecordingStatus): boolean {
+  return status === "IMPORTED" || status === "TRANSCRIBED" || status === "ERROR";
+}
