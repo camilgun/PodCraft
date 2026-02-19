@@ -75,6 +75,15 @@ export interface Recording {
   updatedAt: string;
 }
 
+export interface LibrarySyncResponse {
+  status: "sync_started";
+}
+
+export interface TranscribeStartResponse {
+  status: "accepted" | "already_in_progress";
+  recordingId: string;
+}
+
 export interface AlignedWord {
   word: string;
   startTime: number;

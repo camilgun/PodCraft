@@ -1,19 +1,13 @@
-import { healthResponseSchema, type HealthResponse } from "@podcraft/shared";
-
-const sampleHealthResponse: HealthResponse = {
-  status: "ok"
-};
-
-const parsedHealthResponse = healthResponseSchema.parse(sampleHealthResponse);
+import { Routes, Route, Navigate } from "react-router";
+import { LibraryPage } from "@/pages/library-page";
+import { RecordingDetailPage } from "@/pages/recording-detail-page";
 
 export function App() {
   return (
-    <main className="app-shell">
-      <section className="card">
-        <h1>PodCraft</h1>
-        <p>Monorepo bootstrap completed.</p>
-        <p>Shared contract status: {parsedHealthResponse.status}</p>
-      </section>
-    </main>
+    <Routes>
+      <Route path="/" element={<LibraryPage />} />
+      <Route path="/recordings/:id" element={<RecordingDetailPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }

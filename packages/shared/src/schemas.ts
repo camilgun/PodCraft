@@ -122,6 +122,19 @@ export const recordingDetailResponseSchema = z.object({
 
 export type RecordingDetailResponseFromSchema = z.infer<typeof recordingDetailResponseSchema>;
 
+export const librarySyncResponseSchema = z.object({
+  status: z.literal("sync_started")
+});
+
+export type LibrarySyncResponseFromSchema = z.infer<typeof librarySyncResponseSchema>;
+
+export const transcribeStartResponseSchema = z.object({
+  status: z.enum(["accepted", "already_in_progress"]),
+  recordingId: z.string()
+});
+
+export type TranscribeStartResponseFromSchema = z.infer<typeof transcribeStartResponseSchema>;
+
 export const alignedWordSchema = z
   .object({
     word: z.string(),

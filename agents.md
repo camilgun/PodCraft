@@ -76,10 +76,29 @@ Library Sync usa l'hash per riconciliare quando l'utente rinomina o sposta il fi
 → hash trovato in nuovo path → aggiorna filePath, stato resta invariato
 → hash non trovato da nessuna parte → transita a FILE_MISSING
 
+## Convenzioni Frontend (apps/web)
+
+### Componenti UI
+- **shadcn/ui prima di tutto**: prima di scrivere un componente custom, cerca su [ui.shadcn.com](https://ui.shadcn.com/docs/components) — Button, Card, Badge, Dialog, Table, ecc. sono già disponibili. Si aggiungono con `pnpm dlx shadcn@canary add <nome>` dalla dir `apps/web/`.
+- I componenti shadcn vivono in `src/components/ui/`. Non modificarli direttamente — sono "owned" dal registry. Wrappali se servono customizzazioni.
+
+### API calls
+- **Tutte le chiamate API passano per `src/lib/api-client.ts`**. Mai usare `fetch()` direttamente in componenti o pagine.
+- Ogni funzione restituisce `ApiResult<T>` (`{ ok: true; data }` | `{ ok: false; error }`). Gestire sempre entrambi i casi.
+- Le URL sono relative (`/api/...`) — il proxy Vite le inoltra a `http://localhost:4000`.
+- Se aggiungi una nuova API, aggiungi prima lo schema Zod in `packages/shared` e poi la funzione in `api-client.ts`.
+
+### TypeScript strict — pattern ricorrenti
+- **`import type`** obbligatorio per tutti gli import solo-tipo (`verbatimModuleSyntax: true`).
+- **Floating promises negli event handler**: usa `void asyncFn()` oppure wrappa in una arrow sync: `onClick={() => { void handleClick(); }}`.
+- **`useParams` in React Router 7**: ritorna `string | undefined` — guarda sempre con `if (!id) return` prima di usarlo.
+- **Zod `.nullish()` + `exactOptionalPropertyTypes`**: Zod inferisce `T | null | undefined` ma i tipi di dominio usano `?: T | null`. Dopo `safeParse`, fai `as DomainType` — Zod ha già validato la struttura, è solo un disallineamento del type system.
+
 ## Quando hai dubbi
 
 - Se non sai dove mettere un file → guarda la struttura sopra
 - Se non sai che tipo usare → guarda `packages/shared/src/types.ts`
 - Se non sai se validare → SÌ, valida sempre con Zod/Pydantic
 - Se non sai se testare → SÌ, testa sempre
+- Se ti serve un componente UI → cerca prima in shadcn/ui
 - Non fare scelte architetturali non presenti in questo documento senza chiedere

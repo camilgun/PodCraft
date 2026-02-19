@@ -318,21 +318,41 @@ class QualityResponse(BaseModel):
 
 ---
 
-### Task 1.9 — UI Library View (minima)
+### Task 1.9 — UI Library View (minima) ✅
 
 **Cosa fare:**
-- Homepage React: pagina Library che mostra la lista delle registrazioni
-- Setup routing con React Router 7 (Library + RecordingDetail)
-- Per ogni recording: nome, durata, formato, data, stato (badge colorato)
-- Bottone "Trascrivi" (per ora chiama l'API che ritorna 202, nessun processing reale)
-- Setup base: Tailwind + shadcn/ui (Button, Card, Badge componenti)
-- Audio player HTML5 base: click su una card → si sente l'audio
+- ✅ Homepage React: pagina Library che mostra la lista delle registrazioni
+- ✅ Setup routing con React Router 7 (Library + RecordingDetail)
+- ✅ Per ogni recording: nome, durata, formato, data, stato (badge colorato)
+- ✅ Bottone "Trascrivi" (per ora chiama l'API che ritorna 202, nessun processing reale)
+- ✅ Setup base: Tailwind v4 + shadcn/ui (Button, Card, Badge, Skeleton componenti)
+- ✅ Audio player HTML5 base: click su una card → naviga a RecordingDetail con `<audio controls>`
+
+**Risultato:**
+- ✅ `apps/web/src/lib/api-client.ts` — Typed fetch functions con `ApiResult<T>`, Zod validation
+- ✅ `apps/web/src/lib/format.ts` — Pure functions: `formatDuration`, `formatDate`, `formatFileSize`
+- ✅ `apps/web/src/lib/format.test.ts` — 10 unit test, tutti verdi
+- ✅ `apps/web/src/components/status-badge.tsx` — Badge con colore per ogni `RecordingStatus`
+- ✅ `apps/web/src/components/recording-card.tsx` — Card con metadata + bottone Trascrivi
+- ✅ `apps/web/src/pages/library-page.tsx` — Griglia recordings, auto-sync on mount, loading/error/empty states
+- ✅ `apps/web/src/pages/recording-detail-page.tsx` — Detail view + audio player HTML5
+- ✅ `apps/web/src/App.tsx` / `main.tsx` — React Router 7 BrowserRouter + Routes
+- ✅ 10 test web passano, 145 test totali nella monorepo
+- ✅ Zero errori TypeScript su tutta la monorepo
+
+**Note tecniche:**
+- Tailwind v4 via `@tailwindcss/vite` plugin (CSS-native, no `tailwind.config.js`)
+- shadcn/ui via `pnpm dlx shadcn@canary init` (stile new-york, neutral, CSS variables)
+- Vite proxy `/api` → `http://localhost:4000` (zero CORS, relative URLs ovunque)
+- Auto-sync su mount della LibraryPage (fire-and-forget POST /api/library/sync)
+- Zod validation delle response API in `api-client.ts`; `as Recording` cast necessario per compatibilità `exactOptionalPropertyTypes` vs `.nullish()` Zod
+- Path alias `@/*` → `./src/*` configurato in tsconfig.json e vite.config.ts
 
 **Criterio di completamento:**
-- L'utente apre localhost:5173, vede i suoi file audio reali dalla cartella
-- I metadata sono corretti e leggibili
-- Click su una card permette di ascoltare l'audio
-- Il layout è pulito e navigabile (non deve essere bello, deve essere chiaro)
+- ✅ L'utente apre localhost:5173, vede i suoi file audio reali dalla cartella
+- ✅ I metadata sono corretti e leggibili
+- ✅ Click su una card permette di ascoltare l'audio
+- ✅ Il layout è pulito e navigabile (non deve essere bello, deve essere chiaro)
 
 ---
 
