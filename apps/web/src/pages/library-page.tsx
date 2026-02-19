@@ -10,6 +10,8 @@ type LoadState =
   | { kind: "loaded"; recordings: Recording[] }
   | { kind: "error"; message: string };
 
+// Gaps between consecutive refreshes after sync (not absolute offsets):
+// refresh immediately, wait 750 ms, refresh again, wait 1500 ms, final refresh.
 const SYNC_REFRESH_DELAYS_MS = [0, 750, 1500] as const;
 
 function wait(ms: number): Promise<void> {
