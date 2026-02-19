@@ -71,10 +71,16 @@ export function LibraryPage() {
     void (async () => {
       await loadRecordings();
       if (cancelled) return;
+      setActionError(null);
+      setIsSyncing(true);
       const syncResult = await triggerLibrarySync();
-      if (syncResult.ok && !cancelled) {
+      if (cancelled) return;
+      if (syncResult.ok) {
         await refreshRecordingsAfterSync();
+      } else {
+        setActionError(`Sync failed: ${syncResult.error.message}`);
       }
+      setIsSyncing(false);
     })();
 
     return () => {
