@@ -29,6 +29,13 @@
       "when": 1771468392776,
       "tag": "0003_striped_sabretooth",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1771500438742,
+      "tag": "0004_edit_proposals_analysis_ownership",
+      "breakpoints": true
     }
   ]
 }

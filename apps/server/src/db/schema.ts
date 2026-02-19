@@ -75,10 +75,9 @@ export const analysisResults = sqliteTable("analysis_results", {
 
 export const editProposals = sqliteTable("edit_proposals", {
   id: text("id").primaryKey(),
-  recordingId: text("recording_id")
+  analysisResultId: text("analysis_result_id")
     .notNull()
-    .references(() => recordings.id, { onDelete: "cascade" }),
-  analysisResultId: text("analysis_result_id").references(() => analysisResults.id, { onDelete: "cascade" }),
+    .references(() => analysisResults.id, { onDelete: "cascade" }),
   type: text("type").notNull(), // cut | reorder | tts_replace
   subtype: text("subtype"), // filler | repetition | off_topic | low_energy | tangent
   startTime: real("start_time").notNull(),

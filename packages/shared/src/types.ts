@@ -124,7 +124,7 @@ export interface Chapter {
 
 export interface EditProposal {
   id: string;
-  recordingId: string;
+  analysisResultId: string;
   type: "cut" | "reorder" | "tts_replace";
   subtype?: "filler" | "repetition" | "off_topic" | "low_energy" | "tangent" | null;
   startTime: number;

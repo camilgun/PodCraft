@@ -39,6 +39,8 @@ export type {
 export {
   recordingStatusSchema,
   recordingSchema,
+  recordingsListResponseSchema,
+  recordingDetailResponseSchema,
   alignedWordSchema,
   alignedSegmentSchema,
   transcriptionSchema,
@@ -50,6 +52,8 @@ export {
 export type {
   RecordingStatusFromSchema,
   RecordingFromSchema,
+  RecordingsListResponseFromSchema,
+  RecordingDetailResponseFromSchema,
   AlignedWordFromSchema,
   AlignedSegmentFromSchema,
   TranscriptionFromSchema,

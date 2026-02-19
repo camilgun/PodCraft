@@ -295,6 +295,7 @@ interface AnalysisResult {
 
 interface EditProposal {
   id: string;
+  analysisResultId: string;
   type: 'cut' | 'reorder' | 'tts_replace';
   subtype?: 'filler' | 'repetition' | 'off_topic' | 'low_energy' | 'tangent';
   startTime: number;
@@ -315,6 +316,9 @@ interface Chapter {
   endTime: number;
 }
 ```
+
+**Nota di ownership**: `EditProposal` è sempre figlia di `AnalysisResult` (FK obbligatoria `analysisResultId`).  
+Gli edit manuali utente non vivono in `edit_proposals`: verranno persistiti in una struttura dedicata (`user_edits`) per evitare di mescolare output AI e decisioni utente.
 
 ---
 

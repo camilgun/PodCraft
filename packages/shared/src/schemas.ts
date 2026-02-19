@@ -110,6 +110,18 @@ export const recordingSchema = z.object({
 
 export type RecordingFromSchema = z.infer<typeof recordingSchema>;
 
+export const recordingsListResponseSchema = z.object({
+  recordings: z.array(recordingSchema)
+});
+
+export type RecordingsListResponseFromSchema = z.infer<typeof recordingsListResponseSchema>;
+
+export const recordingDetailResponseSchema = z.object({
+  recording: recordingSchema
+});
+
+export type RecordingDetailResponseFromSchema = z.infer<typeof recordingDetailResponseSchema>;
+
 export const alignedWordSchema = z
   .object({
     word: z.string(),
@@ -190,7 +202,7 @@ export type ChapterFromSchema = z.infer<typeof chapterSchema>;
 export const editProposalSchema = z
   .object({
     id: z.string(),
-    recordingId: z.string(),
+    analysisResultId: z.string(),
     type: z.enum(["cut", "reorder", "tts_replace"]),
     subtype: z
       .enum(["filler", "repetition", "off_topic", "low_energy", "tangent"])

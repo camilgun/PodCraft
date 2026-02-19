@@ -6,6 +6,8 @@ import {
   qualityWindowSchema,
   transcribeResponseSchema,
   recordingSchema,
+  recordingsListResponseSchema,
+  recordingDetailResponseSchema,
   recordingStatusSchema,
   alignedWordSchema,
   alignedSegmentSchema,
@@ -20,6 +22,8 @@ import {
   type QualityWindowFromSchema,
   type TranscribeResponseFromSchema,
   type RecordingFromSchema,
+  type RecordingsListResponseFromSchema,
+  type RecordingDetailResponseFromSchema,
   type AlignedWordFromSchema,
   type AlignedSegmentFromSchema,
   type TranscriptionFromSchema,
@@ -312,6 +316,66 @@ describe("recordingSchema", () => {
   });
 });
 
+describe("recordingsListResponseSchema", () => {
+  const validRecording = {
+    id: "rec-001",
+    filePath: "/Users/test/registrazioni/test.m4a",
+    originalFilename: "test.m4a",
+    durationSeconds: 120.5,
+    sampleRate: 44100,
+    channels: 2,
+    format: "m4a",
+    fileSizeBytes: 1024000,
+    status: "IMPORTED",
+    createdAt: "2026-02-18T10:00:00Z",
+    updatedAt: "2026-02-18T10:00:00Z"
+  } as const;
+
+  it("accepts a valid recordings list payload", () => {
+    const parsed: RecordingsListResponseFromSchema = recordingsListResponseSchema.parse({
+      recordings: [validRecording]
+    });
+    expect(parsed.recordings).toHaveLength(1);
+  });
+
+  it("rejects payloads with invalid recording entries", () => {
+    const result = recordingsListResponseSchema.safeParse({
+      recordings: [{ ...validRecording, format: "aac" }]
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("recordingDetailResponseSchema", () => {
+  const validRecording = {
+    id: "rec-001",
+    filePath: "/Users/test/registrazioni/test.m4a",
+    originalFilename: "test.m4a",
+    durationSeconds: 120.5,
+    sampleRate: 44100,
+    channels: 2,
+    format: "m4a",
+    fileSizeBytes: 1024000,
+    status: "IMPORTED",
+    createdAt: "2026-02-18T10:00:00Z",
+    updatedAt: "2026-02-18T10:00:00Z"
+  } as const;
+
+  it("accepts a valid recording detail payload", () => {
+    const parsed: RecordingDetailResponseFromSchema = recordingDetailResponseSchema.parse({
+      recording: validRecording
+    });
+    expect(parsed.recording.id).toBe("rec-001");
+  });
+
+  it("rejects payloads with invalid recording detail", () => {
+    const result = recordingDetailResponseSchema.safeParse({
+      recording: { ...validRecording, status: "UNKNOWN" }
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
 describe("alignedWordSchema (domain)", () => {
   it("accepts a valid aligned word", () => {
     const parsed: AlignedWordFromSchema = alignedWordSchema.parse({
@@ -479,7 +543,7 @@ describe("qualityScoreSchema", () => {
 describe("editProposalSchema", () => {
   const validProposal = {
     id: "ep-001",
-    recordingId: "rec-001",
+    analysisResultId: "ar-001",
     type: "cut",
     startTime: 0.0,
     endTime: 5.0,
@@ -621,7 +685,7 @@ describe("chapterSchema", () => {
 describe("analysisResultSchema", () => {
   const validProposal = {
     id: "ep-001",
-    recordingId: "rec-001",
+    analysisResultId: "ar-001",
     type: "cut",
     startTime: 0.0,
     endTime: 5.0,

@@ -29,6 +29,7 @@ e può rigenerare sezioni scarsa qualità con TTS voice clone.
 8. **Niente `any`**, niente `as any`, niente `@ts-ignore`.
 9. **Import da `@podcraft/shared`** per tutti i tipi condivisi.
 10. **Naming**: camelCase per TS, snake_case per Python, kebab-case per file.
+11. **Database**: ogni modifica al DB (query, insert, update, delete, schema) deve usare Drizzle ORM. Mai SQL raw diretto, mai altri ORM.
 
 ## Struttura progetto
 

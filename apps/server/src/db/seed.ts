@@ -9,7 +9,7 @@
  */
 import { inArray } from "drizzle-orm";
 import type { AlignedSegment } from "@podcraft/shared";
-import { analysisResults, editProposals, qualityScores, recordings, transcriptions } from "./schema.js";
+import { analysisResults, qualityScores, recordings, transcriptions } from "./schema.js";
 
 const SEED_MODES = ["append", "sync", "purge-seed"] as const;
 type SeedMode = (typeof SEED_MODES)[number];
@@ -175,9 +175,6 @@ function parseSeedMode(rawMode: string | undefined): SeedMode {
 }
 
 async function purgeSeedRows(): Promise<void> {
-  await db
-    .delete(editProposals)
-    .where(inArray(editProposals.recordingId, seedRecordingIdList));
   await db
     .delete(analysisResults)
     .where(inArray(analysisResults.recordingId, seedRecordingIdList));

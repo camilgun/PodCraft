@@ -3,6 +3,10 @@ import { Hono } from "hono";
 import { healthResponseSchema, type HealthResponse } from "@podcraft/shared";
 // Initialize DB and run pending migrations on startup.
 import "./db/index.js";
+import { config } from "./config.js";
+import recordingsRoutes from "./routes/recordings.js";
+import libraryRoutes from "./routes/library-routes.js";
+import filesRoutes from "./routes/files.js";
 
 const app = new Hono();
 
@@ -23,12 +27,14 @@ app.get("/health", (context) => {
   return context.json(parsedPayload.data);
 });
 
-const port = 4000;
+app.route("/", recordingsRoutes);
+app.route("/", libraryRoutes);
+app.route("/", filesRoutes);
 
 serve(
   {
     fetch: app.fetch,
-    port
+    port: config.port
   },
   (info) => {
     console.log(`PodCraft server listening on http://localhost:${info.port}`);

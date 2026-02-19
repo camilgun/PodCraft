@@ -177,8 +177,8 @@ class AlignResponse(BaseModel):
 - [ ] La voce clonata è riconoscibile come la stessa persona?
 - [ ] La naturalezza è accettabile per un podcast?
 - [ ] Artefatti audio evidenti?
-- [ ] Tempo di generazione per 10 secondi di audio: _____ secondi
-- [ ] RAM aggiuntiva: _____ GB
+- [ ] Tempo di generazione per 10 secondi di audio: **\_** secondi
+- [ ] RAM aggiuntiva: **\_** GB
 
 **Decisione:**
 - ✅ Accettabile → si conferma locale
@@ -253,6 +253,7 @@ class QualityResponse(BaseModel):
 - `better-sqlite3` è un addon nativo: build approvata via `pnpm.approvedBuilds` nel root `package.json`
 - `*.db` aggiunto a `.gitignore`
 - Segments e chapters: JSON nel DB (non normalizzati, non si fa query su singole parole)
+- Ownership proposte: `edit_proposals` è legata a `analysis_results` tramite `analysis_result_id` obbligatorio; gli edit manuali utente andranno in una tabella dedicata (`user_edits`) per non mescolare output AI e modifiche umane
 - ⚠️ Schema v0 non include `file_hash` / `file_last_checked_at` — aggiunti nella migration `0001_uneven_tag.sql` (Task 1.8, vedi sotto)
 - ✅ Vincoli identity DB aggiunti in `0002_nervous_maverick.sql`: `UNIQUE(file_path)` + index su `file_hash`
 - ✅ `apps/server/src/lib/library-reconciliation.ts` — pure reconciliation function (anticipata da Task 1.8); tests verdi
@@ -260,7 +261,7 @@ class QualityResponse(BaseModel):
 
 ---
 
-### Task 1.8 — Library Sync + API base
+### Task 1.8 — Library Sync + API base ✅
 
 **Cosa fare:**
 - Backend: service `library.ts` che scansiona `RECORDINGS_DIR`:
@@ -282,6 +283,29 @@ class QualityResponse(BaseModel):
   - `POST /api/library/sync` — triggera Library Sync manualmente (202 + esegue sync in background)
   - `POST /api/recordings/:id/transcribe` — avvia trascrizione (placeholder, ritorna 202)
   - `GET /api/files/:id/audio` — serve il file audio per il player
+
+**Risultato:**
+
+- ✅ `apps/server/src/config.ts` — env config con `RECORDINGS_DIR` (obbligatorio, supporta `~`), `DATABASE_URL`, `PORT`
+- ✅ `apps/server/src/lib/file-hash.ts` — `computeFileHash(filePath, fileSizeBytes)`: SHA-256(first 1MB || size_LE64)
+- ✅ `apps/server/src/lib/file-hash.test.ts` — 7 unit test, tutti verdi
+- ✅ `apps/server/src/lib/ffprobe.ts` — `probeAudioFile(filePath)`: ffprobe CLI + Zod validation → `AudioMetadata`
+- ✅ `apps/server/src/services/library.ts` — `runLibrarySync()`: scan flat dir, probe+hash, reconcile, tx DB mutations
+- ✅ `apps/server/src/routes/recordings.ts` — GET /api/recordings, GET /api/recordings/:id, POST /api/recordings/:id/transcribe (placeholder 202)
+- ✅ `apps/server/src/routes/library-routes.ts` — POST /api/library/sync (202, fire-and-forget)
+- ✅ `apps/server/src/routes/files.ts` — GET /api/files/:id/audio (streaming + Range support)
+- ✅ `apps/server/src/index.ts` — route mounting, porta da config
+- ✅ 12 test TypeScript passano (7 nuovi + 5 esistenti)
+- ✅ Zero errori TypeScript su tutta la monorepo
+
+**Note tecniche:**
+
+- `zod` aggiunto come dipendenza diretta in `apps/server` (usato in ffprobe.ts per la validazione dell'output ffprobe)
+- Hash encoding: `SHA-256(firstWindowBytes || fileSizeBytes_as_8byte_LE_uint64)` — consente di distinguere file con stesso contenuto ma dimensione diversa
+- Scan directory: flat (non-recursive) — per ora solo file nella root di `RECORDINGS_DIR`
+- Background sync: fire-and-forget con `void promise.then/catch` — BullMQ arriva in Task 1.10
+- Audio serving: Range header supportato (partial content 206) per compatibilità con `<audio>` HTML5
+- Retrocompat (hash null → populate): gestita nel service layer, la funzione pura non tocca il DB
 
 **Criterio di completamento:**
 - Con file reali nella cartella, `GET /api/recordings` restituisce la lista corretta
@@ -325,6 +349,7 @@ class QualityResponse(BaseModel):
   - L'audio che avanza → il testo corrispondente si evidenzia
 
 **Criterio di completamento (la demo che chiude lo sprint):**
+
 1. Apro localhost:5173
 2. Vedo la lista dei miei file audio reali
 3. Clicco "Trascrivi" su una registrazione
@@ -361,7 +386,7 @@ Al termine dello sprint, compilare e aggiornare la Source of Truth:
 - Qualità voice clone: [1-5] + note
 - Naturalezza: accettabile per podcast? sì/no
 - Performance: X sec per 10s di audio
-- Decisione: ✅ Confermato / 🔄 Switch a ______
+- Decisione: ✅ Confermato / 🔄 Switch a **\_\_**
 
 ### Quality (NISQA)
 - Endpoint: `POST /assess-quality` implementato (finestre default 3s configurabili via API + `min_window_seconds` opzionale derivato da `window_seconds` + merge tail corto + average_mos + inference_time_seconds)
