@@ -55,7 +55,7 @@ export function LibraryPage() {
     if (result.ok) {
       await refreshRecordingsAfterSync();
     } else {
-      setState({ kind: "error", message: result.error.message });
+      setActionError(`Sync failed: ${result.error.message}`);
     }
 
     setIsSyncing(false);
