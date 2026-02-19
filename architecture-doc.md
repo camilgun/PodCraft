@@ -170,10 +170,12 @@ Ogni registrazione nella libreria ha uno stato preciso. Questo guida sia l'UI (c
                           │               │
                           └──────────────┘
 
-    Qualsiasi stato può andare a → ERROR (con messaggio)
+    Qualsiasi stato operativo (escluso FILE_MISSING) può andare a → ERROR (con messaggio)
     Da ERROR l'utente può → Riprovare (torna allo stato precedente)
     Da TRANSCRIBED l'utente può → ri-trascrivere (torna a TRANSCRIBING)
     Da REVIEWED l'utente può → ri-analizzare (torna a ANALYZING)
+    Qualsiasi stato operativo (escluso FILE_MISSING) può andare a → FILE_MISSING (Library Sync non trova il file)
+    Da FILE_MISSING → Library Sync ritrova il file (anche con path diverso) → torna a IMPORTED
 ```
 
 **Azioni disponibili per stato:**
@@ -188,6 +190,7 @@ Ogni registrazione nella libreria ha uno stato preciso. Questo guida sia l'UI (c
 | EXPORTING | Progress bar rendering | Annulla |
 | COMPLETED | Link download + player preview | Scarica WAV, Scarica MP3, Torna a Review |
 | ERROR | Messaggio errore dettagliato | Riprova |
+| FILE_MISSING | Avviso "file non trovato" + path originale | Nessuna azione automatica — Library Sync aggiorna quando il file viene ritrovato |
 
 ---
 
@@ -200,8 +203,10 @@ Queste strutture sono definite nel package `shared` in TypeScript (Zod) e rispec
 ```typescript
 interface Recording {
   id: string;
-  filePath: string;
+  filePath: string;          // operative path — dove il file si trova ora
   originalFilename: string;
+  fileHash?: string;         // SHA-256(first 1 MB + file_size_bytes) — canonical identity
+  fileLastCheckedAt?: string; // ISO 8601 — ultimo controllo di presenza su disco
   durationSeconds: number;
   sampleRate: number;
   channels: number;
@@ -209,6 +214,7 @@ interface Recording {
   fileSizeBytes: number;
   status: RecordingStatus;
   languageDetected?: string; // populated after ASR
+  errorMessage?: string;
   createdAt: string;         // ISO 8601
   updatedAt: string;
 }
@@ -221,8 +227,11 @@ type RecordingStatus =
   | 'REVIEWED'
   | 'EXPORTING'
   | 'COMPLETED'
-  | 'ERROR';
+  | 'ERROR'
+  | 'FILE_MISSING';          // Library Sync non trova il file su disco
 ```
+
+**File identity strategy**: ogni recording usa `filePath` per le operazioni correnti e `fileHash` come identità canonica. La riconciliazione è path-first (match deterministico sul path corrente) e usa l'hash solo come fallback per riganciare record `FILE_MISSING`. Se più record `FILE_MISSING` condividono lo stesso hash, la sync segnala un caso ambiguo e non aggiorna automaticamente il `filePath`.
 
 ### Transcription & Alignment
 
@@ -346,6 +355,7 @@ podcraft/
 │       │   ├── index.ts          # Entry point: Hono app + WebSocket
 │       │   ├── routes/
 │       │   │   ├── recordings.ts # CRUD recordings + stato
+│       │   │   ├── library.ts    # POST /api/library/sync (trigger scan da frontend)
 │       │   │   ├── transcriptions.ts
 │       │   │   ├── analysis.ts
 │       │   │   ├── proposals.ts  # Accept/reject/modify
@@ -514,10 +524,16 @@ Quando l'utente clicca "Apri" su una registrazione in stato REVIEWED.
 Pipeline asincrona gestita da BullMQ. Ogni step è un job separato.
 
 ### Step 1 — Library Sync
-- All'avvio (e periodicamente), il server scansiona `RECORDINGS_DIR`
-- Nuovi file → creati in DB con stato `IMPORTED`
-- File rimossi → marcati (soft delete, mai rimossi dal DB)
-- File modificati → rilevati via hash/mtime
+- All'avvio (e su richiesta via `POST /api/library/sync`), il server scansiona `RECORDINGS_DIR`
+- Per ogni file trovato su disco, calcola il fingerprint: `SHA-256(first 1 MB + file_size_bytes)` (fast, ~2ms su M4 Max)
+- **Riconciliazione**:
+  1. File con path già in DB → match diretto (deterministico); se `fileHash` manca, viene popolato (retrocompat)
+  2. Se il path non matcha: hash trovato su una sola entry `FILE_MISSING` → aggiorna `filePath` e torna a `IMPORTED`
+  3. Se il path non matcha: hash trovato su più entry `FILE_MISSING` → caso ambiguo, nessun auto-link
+  4. File non in DB → creato con stato `IMPORTED`
+- DB entry non matchata da nessun file su disco → transita a `FILE_MISSING`
+- Integrità/performance DB: `file_path` è `UNIQUE`, `file_hash` è indicizzato
+- Mai rimossi dal DB (soft: tutti i dati di trascrizione/analisi restano disponibili)
 
 ### Step 2 — Transcription (trigger: utente)
 - Job `transcribe`: invia audio a ML Service → Qwen3-ASR-1.7B

@@ -9,15 +9,25 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
     "test": "vitest run --passWithNoTests",
-    "start": "tsx src/index.ts"
+    "start": "tsx src/index.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "tsx src/db/seed.ts",
+    "db:seed:sync": "tsx src/db/seed.ts sync",
+    "db:seed:purge-seed": "tsx src/db/seed.ts purge-seed"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.8",
     "@podcraft/shared": "workspace:*",
+    "better-sqlite3": "^12.6.2",
+    "drizzle-orm": "^0.45.1",
     "hono": "^4.7.2"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.0.0",
+    "drizzle-kit": "^0.31.9",
     "tsx": "^4.19.3",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"

@@ -223,7 +223,7 @@ class QualityResponse(BaseModel):
 
 ---
 
-### Task 1.7 — Database e tipi fondamentali
+### Task 1.7 — Database e tipi fondamentali ✅
 
 **Cosa fare:**
 - Definire tutti i tipi in `packages/shared` (TypeScript + Zod):
@@ -235,11 +235,28 @@ class QualityResponse(BaseModel):
   - Migration iniziale
   - Seed script con dati di test
 
-**Criterio di completamento:**
-- I tipi sono importabili sia dal frontend che dal backend
-- `pnpm test` nel package shared passa con copertura >90%
-- Il DB si crea automaticamente alla prima run del server
-- Le transizioni di stato invalide vengono rifiettate dalla state machine
+**Risultato:**
+- ✅ `packages/shared/src/types.ts` — tutti i tipi di dominio + ML response types (rinominato `AlignedWord` ML → `MlAlignedWord`)
+- ✅ `packages/shared/src/schemas.ts` — Zod schemas per tutti i tipi domain + ML
+- ✅ `packages/shared/src/stateMachine.ts` — `canTransition(from, to)` + `VALID_TRANSITIONS`
+- ✅ `packages/shared/src/constants.ts` — `QUALITY_THRESHOLD_DEFAULT`, `SUPPORTED_AUDIO_FORMATS`, `ML_SERVICE_BASE_URL_DEFAULT`, `FILE_HASH_WINDOW_BYTES`
+- ✅ `apps/server/src/db/schema.ts` — 5 tabelle Drizzle (recordings, transcriptions, quality_scores, analysis_results, edit_proposals)
+- ✅ `apps/server/src/db/index.ts` — auto-migration WAL mode, foreign keys
+- ✅ `apps/server/src/db/seed.ts` — 3 recording test (IMPORTED, TRANSCRIBED, ERROR)
+- ✅ `apps/server/src/db/migrations/0000_magical_misty_knight.sql` — migration iniziale
+- ✅ `pnpm build` — zero errori TypeScript su tutta la monorepo
+- ✅ 106 test TypeScript passano (101 in `@podcraft/shared`, 5 in `@podcraft/server`)
+- ✅ DB si crea automaticamente alla prima run del server (`podcraft.db`)
+- ✅ Transizioni invalide rifiutate (es. `IMPORTED → COMPLETED` → `false`)
+
+**Note tecniche:**
+- `better-sqlite3` è un addon nativo: build approvata via `pnpm.approvedBuilds` nel root `package.json`
+- `*.db` aggiunto a `.gitignore`
+- Segments e chapters: JSON nel DB (non normalizzati, non si fa query su singole parole)
+- ⚠️ Schema v0 non include `file_hash` / `file_last_checked_at` — aggiunti nella migration `0001_uneven_tag.sql` (Task 1.8, vedi sotto)
+- ✅ Vincoli identity DB aggiunti in `0002_nervous_maverick.sql`: `UNIQUE(file_path)` + index su `file_hash`
+- ✅ `apps/server/src/lib/library-reconciliation.ts` — pure reconciliation function (anticipata da Task 1.8); tests verdi
+  - **Nota**: implementata qui perché isola la logica pura prima del service layer. Task 1.8 non deve riscriverla, solo usarla.
 
 ---
 
@@ -249,16 +266,30 @@ class QualityResponse(BaseModel):
 - Backend: service `library.ts` che scansiona `RECORDINGS_DIR`:
   - Legge i file audio supportati (wav, mp3, m4a, flac, ogg)
   - Estrae metadata con FFmpeg (durata, sample rate, formato, dimensione)
-  - Sync con DB: nuovi file → `IMPORTED`, file spariti → flaggati
+  - Calcola file fingerprint: `SHA-256(primi 1 MB + file_size_bytes)` — funzione in `apps/server/src/lib/file-hash.ts`
+  - **Algoritmo di riconciliazione** (in ordine di priorità):
+    1. Path trovato in DB → match diretto (deterministico); se hash manca, imposta `fileHash` (retrocompat)
+    2. Path non trovato + hash match su una sola entry `FILE_MISSING` → aggiorna `filePath`, transita a `IMPORTED`
+    3. Path non trovato + hash match su più entry `FILE_MISSING` → caso ambiguo, non fa auto-link
+    4. Nessun match → crea nuova entry `IMPORTED` con `fileHash` + `fileLastCheckedAt`
+    5. DB entry non matchata → transita a `FILE_MISSING` se non era già in quel stato
+- **Reconciliation pure logic già implementata** in `apps/server/src/lib/library-reconciliation.ts` (anticipata da Task 1.7). Task 1.8 la consuma senza riscriverla.
+- **Retrocompat (step 1)**: quando `reconcileLibraryFiles` restituisce un `LibraryMatch` con `reason: "path"` e il recording in DB aveva `fileHash = null`, il service layer deve persistere `match.fileHash` al DB. La funzione pura restituisce già il nuovo hash — tocca al service applicarlo.
+- Aggiunge le 2 colonne nullable alla migration `0001_uneven_tag.sql` (già generata da schema.ts)
 - API routes:
   - `GET /api/recordings` — lista recordings con stato
   - `GET /api/recordings/:id` — dettaglio singola recording
+  - `POST /api/library/sync` — triggera Library Sync manualmente (202 + esegue sync in background)
   - `POST /api/recordings/:id/transcribe` — avvia trascrizione (placeholder, ritorna 202)
   - `GET /api/files/:id/audio` — serve il file audio per il player
 
 **Criterio di completamento:**
 - Con file reali nella cartella, `GET /api/recordings` restituisce la lista corretta
 - I metadata (durata, formato) sono precisi
+- `fileHash` è popolato per ogni recording al primo sync
+- Se si rinomina un file nella cartella e si triggera sync, `filePath` viene aggiornato (non creata nuova entry)
+- File spariti dalla cartella → `FILE_MISSING`
+- File ritrovati (con path diverso) → tornano a `IMPORTED`
 - L'audio è servibile al browser via `/api/files/:id/audio`
 
 ---

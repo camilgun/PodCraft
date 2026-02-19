@@ -1,5 +1,3 @@
-.old/
-old/
 node_modules/
 .turbo/
 dist/
@@ -18,3 +16,8 @@ __pycache__/
 
 # ML reports (contains local paths/transcripts)
 services/ml/reports/*.jsonl
+
+# SQLite DB (local data, not committed)
+*.db
+*.db-shm
+*.db-wal

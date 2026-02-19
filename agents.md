@@ -61,7 +61,19 @@ podcraft/
 ## Stato recording (state machine)
 
 IMPORTED → TRANSCRIBING → TRANSCRIBED → ANALYZING → REVIEWED → EXPORTING → COMPLETED
-Qualsiasi stato può → ERROR. Da ERROR si può → Riprovare.
+Qualsiasi stato operativo (escluso `FILE_MISSING`) può → ERROR. Da ERROR si può → Riprovare.
+Qualsiasi stato operativo (escluso `FILE_MISSING`) può → FILE_MISSING (Library Sync non trova il file su disco).
+Da FILE_MISSING → IMPORTED (Library Sync ritrova il file, possibilmente con path diverso).
+
+## Identità file (file identity strategy)
+
+Ogni recording ha due riferimenti al file:
+- `filePath` (operativo) — path corrente su disco, usato per processare il file
+- `fileHash` (canonico) — SHA-256(primi 1 MB del file + file_size_bytes), calcolato una volta all'import
+
+Library Sync usa l'hash per riconciliare quando l'utente rinomina o sposta il file:
+→ hash trovato in nuovo path → aggiorna filePath, stato resta invariato
+→ hash non trovato da nessuna parte → transita a FILE_MISSING
 
 ## Quando hai dubbi
 

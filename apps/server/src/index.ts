@@ -1,6 +1,8 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { healthResponseSchema, type HealthResponse } from "@podcraft/shared";
+// Initialize DB and run pending migrations on startup.
+import "./db/index.js";
 
 const app = new Hono();
 
