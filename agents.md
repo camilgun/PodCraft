@@ -98,6 +98,54 @@ Library Sync usa l'hash per riconciliare quando l'utente rinomina o sposta il fi
 - **`useParams` in React Router 7**: ritorna `string | undefined` — guarda sempre con `if (!id) return` prima di usarlo.
 - **Zod `.nullish()` + `exactOptionalPropertyTypes`**: Zod inferisce `T | null | undefined` ma i tipi di dominio usano `?: T | null`. Dopo `safeParse`, fai `as DomainType` — Zod ha già validato la struttura, è solo un disallineamento del type system.
 
+## Git Workflow
+
+Ogni task del sprint ha il suo branch dedicato. Non lavorare mai direttamente su `main`.
+
+### Inizio task
+
+```bash
+git checkout main
+git checkout -b task/X.Y-slug-breve
+# es: task/1.10-transcription-ui
+#     task/2.1-bullmq-jobs
+#     task/2.3-fix-alignment-endpoint
+```
+
+### Review
+
+fai la review sul branch:
+
+```bash
+git diff main...HEAD          # tutto il diff accumulato rispetto a main
+git log main..HEAD --oneline  # lista commit del branch
+```
+
+### Merge su main
+
+```bash
+git checkout main
+git merge --squash task/X.Y-slug-breve
+git commit -m "feat: descrizione finale pulita"
+```
+
+Usa il prefisso convenzionale nel commit finale:
+
+- `feat:` — nuova funzionalità
+- `fix:` — bugfix
+- `refactor:` — refactoring senza cambio comportamento
+- `test:` — aggiunta/modifica test
+- `chore:` — manutenzione (deps, config, build)
+
+### Cleanup e push
+
+```bash
+git branch -d task/X.Y-slug-breve   # rimuovi il branch locale
+git push origin main
+```
+
+---
+
 ## Quando hai dubbi
 
 - Se non sai dove mettere un file → guarda la struttura sopra
