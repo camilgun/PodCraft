@@ -5,7 +5,7 @@ export default mergeConfig(
   baseVitestConfig,
   defineConfig({
     test: {
-      environment: "node"
-    }
-  })
+      environment: "node",
+    },
+  }),
 );

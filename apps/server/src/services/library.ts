@@ -10,12 +10,12 @@ import { probeAudioFile } from "../lib/ffprobe.js";
 import {
   reconcileLibraryFiles,
   type LibraryDiskFile,
-  type LibraryRecordingIdentity
+  type LibraryRecordingIdentity,
 } from "../lib/library-reconciliation.js";
 import {
   selectRecordingsToMarkMissing,
   shouldAbortSyncForProbeFailures,
-  type MissingTransitionCandidate
+  type MissingTransitionCandidate,
 } from "../lib/library-sync-decisions.js";
 import { config } from "../config.js";
 
@@ -69,7 +69,7 @@ export async function runLibrarySync(): Promise<LibrarySyncSummary> {
         filePath,
         fileHash,
         originalFilename: getBasename(filePath),
-        ...metadata
+        ...metadata,
       });
     } catch (err) {
       failedPaths.add(filePath);
@@ -81,11 +81,11 @@ export async function runLibrarySync(): Promise<LibrarySyncSummary> {
     shouldAbortSyncForProbeFailures({
       discoveredAudioFileCount: audioFiles.length,
       successfulProbeCount: diskFiles.length,
-      failedProbeCount: failedPaths.size
+      failedProbeCount: failedPaths.size,
     })
   ) {
     throw new Error(
-      `Library sync aborted: failed to probe/hash all ${failedPaths.size} discovered audio files.`
+      `Library sync aborted: failed to probe/hash all ${failedPaths.size} discovered audio files.`,
     );
   }
 
@@ -95,7 +95,7 @@ export async function runLibrarySync(): Promise<LibrarySyncSummary> {
       id: recordings.id,
       filePath: recordings.filePath,
       fileHash: recordings.fileHash,
-      status: recordings.status
+      status: recordings.status,
     })
     .from(recordings);
 
@@ -103,12 +103,12 @@ export async function runLibrarySync(): Promise<LibrarySyncSummary> {
     id: row.id,
     filePath: row.filePath,
     fileHash: row.fileHash,
-    status: row.status as RecordingStatus
+    status: row.status as RecordingStatus,
   }));
   const missingTransitionCandidates: MissingTransitionCandidate[] = dbRows.map((row) => ({
     id: row.id,
     filePath: row.filePath,
-    status: row.status as RecordingStatus
+    status: row.status as RecordingStatus,
   }));
 
   // Build maps for retrocompat lookup (fileHash null check) and status reset
@@ -137,7 +137,7 @@ export async function runLibrarySync(): Promise<LibrarySyncSummary> {
             fileLastCheckedAt: now,
             updatedAt: now,
             ...(needsHashUpdate ? { fileHash: match.fileHash } : {}),
-            ...(needsStatusReset ? { status: "IMPORTED" } : {})
+            ...(needsStatusReset ? { status: "IMPORTED" } : {}),
           })
           .where(eq(recordings.id, match.recordingId))
           .run();
@@ -154,7 +154,7 @@ export async function runLibrarySync(): Promise<LibrarySyncSummary> {
             status: "IMPORTED",
             fileHash: match.fileHash,
             fileLastCheckedAt: now,
-            updatedAt: now
+            updatedAt: now,
           })
           .where(eq(recordings.id, match.recordingId))
           .run();
@@ -181,7 +181,7 @@ export async function runLibrarySync(): Promise<LibrarySyncSummary> {
           fileSizeBytes: diskFile.fileSizeBytes,
           status: "IMPORTED",
           createdAt: now,
-          updatedAt: now
+          updatedAt: now,
         })
         .run();
       newCount++;
@@ -192,7 +192,7 @@ export async function runLibrarySync(): Promise<LibrarySyncSummary> {
       const toMark = selectRecordingsToMarkMissing(
         reconciliation.unmatchedRecordingIds,
         missingTransitionCandidates,
-        discoveredAudioPaths
+        discoveredAudioPaths,
       );
 
       if (toMark.length > 0) {
@@ -210,7 +210,7 @@ export async function runLibrarySync(): Promise<LibrarySyncSummary> {
     updatedCount,
     missingCount,
     ambiguousCount: reconciliation.ambiguousMatches.length,
-    failedCount: failedPaths.size
+    failedCount: failedPaths.size,
   };
 }
 

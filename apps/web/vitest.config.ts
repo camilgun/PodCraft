@@ -5,7 +5,7 @@ export default mergeConfig(
   baseVitestConfig,
   defineConfig({
     test: {
-      environment: "jsdom"
-    }
-  })
+      environment: "jsdom",
+    },
+  }),
 );

@@ -7,9 +7,9 @@ const baseVitestConfig = defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],
-      exclude: ["**/*.config.*", "**/dist/**", "**/coverage/**"]
-    }
-  }
+      exclude: ["**/*.config.*", "**/dist/**", "**/coverage/**"],
+    },
+  },
 });
 
 export default baseVitestConfig;

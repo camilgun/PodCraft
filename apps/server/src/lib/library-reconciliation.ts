@@ -45,7 +45,7 @@ function getAvailableIds(ids: ReadonlyArray<string>, matchedIds: ReadonlySet<str
  */
 export function reconcileLibraryFiles(
   diskFiles: ReadonlyArray<LibraryDiskFile>,
-  recordings: ReadonlyArray<LibraryRecordingIdentity>
+  recordings: ReadonlyArray<LibraryRecordingIdentity>,
 ): LibraryReconciliationResult {
   const matchedRecordingIds = new Set<string>();
   const matches: LibraryMatch[] = [];
@@ -80,7 +80,7 @@ export function reconcileLibraryFiles(
         recordingId,
         filePath: file.filePath,
         fileHash: file.fileHash,
-        reason: "path"
+        reason: "path",
       });
       continue;
     }
@@ -90,14 +90,14 @@ export function reconcileLibraryFiles(
         reason: "path",
         filePath: file.filePath,
         fileHash: file.fileHash,
-        candidateRecordingIds: [...pathCandidates].sort()
+        candidateRecordingIds: [...pathCandidates].sort(),
       });
       continue;
     }
 
     const hashCandidates = getAvailableIds(
       missingHashIndex.get(file.fileHash) ?? [],
-      matchedRecordingIds
+      matchedRecordingIds,
     );
     if (hashCandidates.length === 1) {
       const [recordingId] = hashCandidates;
@@ -110,7 +110,7 @@ export function reconcileLibraryFiles(
         recordingId,
         filePath: file.filePath,
         fileHash: file.fileHash,
-        reason: "hash"
+        reason: "hash",
       });
       continue;
     }
@@ -120,7 +120,7 @@ export function reconcileLibraryFiles(
         reason: "hash",
         filePath: file.filePath,
         fileHash: file.fileHash,
-        candidateRecordingIds: [...hashCandidates].sort()
+        candidateRecordingIds: [...hashCandidates].sort(),
       });
       continue;
     }
@@ -136,6 +136,6 @@ export function reconcileLibraryFiles(
     matches,
     newFiles,
     ambiguousMatches,
-    unmatchedRecordingIds
+    unmatchedRecordingIds,
   };
 }

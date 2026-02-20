@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { reconcileLibraryFiles, type LibraryDiskFile, type LibraryRecordingIdentity } from "./library-reconciliation.js";
+import {
+  reconcileLibraryFiles,
+  type LibraryDiskFile,
+  type LibraryRecordingIdentity,
+} from "./library-reconciliation.js";
 
 const hashA = "a".repeat(64);
 const hashB = "b".repeat(64);
@@ -11,14 +15,14 @@ describe("reconcileLibraryFiles", () => {
         id: "rec-by-path",
         filePath: "/audio/current.wav",
         fileHash: hashA,
-        status: "IMPORTED"
+        status: "IMPORTED",
       },
       {
         id: "rec-missing-same-hash",
         filePath: "/audio/old.wav",
         fileHash: hashA,
-        status: "FILE_MISSING"
-      }
+        status: "FILE_MISSING",
+      },
     ];
 
     const files: LibraryDiskFile[] = [{ filePath: "/audio/current.wav", fileHash: hashA }];
@@ -29,8 +33,8 @@ describe("reconcileLibraryFiles", () => {
         recordingId: "rec-by-path",
         filePath: "/audio/current.wav",
         fileHash: hashA,
-        reason: "path"
-      }
+        reason: "path",
+      },
     ]);
     expect(result.newFiles).toEqual([]);
     expect(result.ambiguousMatches).toEqual([]);
@@ -42,8 +46,8 @@ describe("reconcileLibraryFiles", () => {
         id: "rec-missing",
         filePath: "/audio/old-path.wav",
         fileHash: hashA,
-        status: "FILE_MISSING"
-      }
+        status: "FILE_MISSING",
+      },
     ];
 
     const files: LibraryDiskFile[] = [{ filePath: "/audio/new-path.wav", fileHash: hashA }];
@@ -54,8 +58,8 @@ describe("reconcileLibraryFiles", () => {
         recordingId: "rec-missing",
         filePath: "/audio/new-path.wav",
         fileHash: hashA,
-        reason: "hash"
-      }
+        reason: "hash",
+      },
     ]);
     expect(result.newFiles).toEqual([]);
     expect(result.ambiguousMatches).toEqual([]);
@@ -67,8 +71,8 @@ describe("reconcileLibraryFiles", () => {
         id: "rec-ready",
         filePath: "/audio/existing.wav",
         fileHash: hashA,
-        status: "TRANSCRIBED"
-      }
+        status: "TRANSCRIBED",
+      },
     ];
 
     const files: LibraryDiskFile[] = [{ filePath: "/audio/new.wav", fileHash: hashA }];
@@ -85,14 +89,14 @@ describe("reconcileLibraryFiles", () => {
         id: "missing-a",
         filePath: "/audio/missing-a.wav",
         fileHash: hashA,
-        status: "FILE_MISSING"
+        status: "FILE_MISSING",
       },
       {
         id: "missing-b",
         filePath: "/audio/missing-b.wav",
         fileHash: hashA,
-        status: "FILE_MISSING"
-      }
+        status: "FILE_MISSING",
+      },
     ];
 
     const files: LibraryDiskFile[] = [{ filePath: "/audio/found.wav", fileHash: hashA }];
@@ -105,8 +109,8 @@ describe("reconcileLibraryFiles", () => {
         reason: "hash",
         filePath: "/audio/found.wav",
         fileHash: hashA,
-        candidateRecordingIds: ["missing-a", "missing-b"]
-      }
+        candidateRecordingIds: ["missing-a", "missing-b"],
+      },
     ]);
   });
 
@@ -116,14 +120,14 @@ describe("reconcileLibraryFiles", () => {
         id: "matched-by-path",
         filePath: "/audio/path.wav",
         fileHash: hashA,
-        status: "IMPORTED"
+        status: "IMPORTED",
       },
       {
         id: "left-unmatched",
         filePath: "/audio/other.wav",
         fileHash: hashB,
-        status: "TRANSCRIBED"
-      }
+        status: "TRANSCRIBED",
+      },
     ];
 
     const files: LibraryDiskFile[] = [{ filePath: "/audio/path.wav", fileHash: hashA }];

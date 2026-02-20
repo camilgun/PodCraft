@@ -173,7 +173,7 @@ describe("canTransition", () => {
         "REVIEWED",
         "EXPORTING",
         "COMPLETED",
-        "ERROR"
+        "ERROR",
       ];
       for (const status of processable) {
         expect(canTransition(status, "FILE_MISSING")).toBe(true);
@@ -207,7 +207,7 @@ describe("canTransition", () => {
       "EXPORTING",
       "COMPLETED",
       "ERROR",
-      "FILE_MISSING"
+      "FILE_MISSING",
     ];
 
     it("covers every RecordingStatus as a key", () => {

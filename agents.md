@@ -69,6 +69,7 @@ Da FILE_MISSING → IMPORTED (Library Sync ritrova il file, possibilmente con pa
 ## Identità file (file identity strategy)
 
 Ogni recording ha due riferimenti al file:
+
 - `filePath` (operativo) — path corrente su disco, usato per processare il file
 - `fileHash` (canonico) — SHA-256(primi 1 MB del file + file_size_bytes), calcolato una volta all'import
 
@@ -79,16 +80,19 @@ Library Sync usa l'hash per riconciliare quando l'utente rinomina o sposta il fi
 ## Convenzioni Frontend (apps/web)
 
 ### Componenti UI
+
 - **shadcn/ui prima di tutto**: prima di scrivere un componente custom, cerca su [ui.shadcn.com](https://ui.shadcn.com/docs/components) — Button, Card, Badge, Dialog, Table, ecc. sono già disponibili. Si aggiungono con `pnpm dlx shadcn@canary add <nome>` dalla dir `apps/web/`.
 - I componenti shadcn vivono in `src/components/ui/`. Non modificarli direttamente — sono "owned" dal registry. Wrappali se servono customizzazioni.
 
 ### API calls
+
 - **Tutte le chiamate API passano per `src/lib/api-client.ts`**. Mai usare `fetch()` direttamente in componenti o pagine.
 - Ogni funzione restituisce `ApiResult<T>` (`{ ok: true; data }` | `{ ok: false; error }`). Gestire sempre entrambi i casi.
 - Le URL sono relative (`/api/...`) — il proxy Vite le inoltra a `http://localhost:4000`.
 - Se aggiungi una nuova API, aggiungi prima lo schema Zod in `packages/shared` e poi la funzione in `api-client.ts`.
 
 ### TypeScript strict — pattern ricorrenti
+
 - **`import type`** obbligatorio per tutti gli import solo-tipo (`verbatimModuleSyntax: true`).
 - **Floating promises negli event handler**: usa `void asyncFn()` oppure wrappa in una arrow sync: `onClick={() => { void handleClick(); }}`.
 - **`useParams` in React Router 7**: ritorna `string | undefined` — guarda sempre con `if (!id) return` prima di usarlo.

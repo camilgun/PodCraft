@@ -17,7 +17,7 @@ app.post("/api/library/sync", (c) => {
     syncInFlight = runLibrarySync()
       .then((summary) => {
         console.log(
-          `[library-sync] completed: ${summary.newCount} new, ${summary.updatedCount} updated, ${summary.missingCount} missing, ${summary.ambiguousCount} ambiguous, ${summary.failedCount} failed`
+          `[library-sync] completed: ${summary.newCount} new, ${summary.updatedCount} updated, ${summary.missingCount} missing, ${summary.ambiguousCount} ambiguous, ${summary.failedCount} failed`,
         );
       })
       .catch((err: unknown) => {

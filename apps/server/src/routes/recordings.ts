@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import {
   canTransition,
   recordingDetailResponseSchema,
-  recordingsListResponseSchema
+  recordingsListResponseSchema,
 } from "@podcraft/shared";
 import type { Recording } from "@podcraft/shared";
 import { db } from "../db/index.js";
@@ -13,7 +13,7 @@ const app = new Hono();
 const TRANSCRIBE_STARTABLE_STATUSES: ReadonlySet<Recording["status"]> = new Set([
   "IMPORTED",
   "TRANSCRIBED",
-  "ERROR"
+  "ERROR",
 ]);
 
 /** Maps a Drizzle row to the Recording domain type. */
@@ -33,7 +33,7 @@ function rowToRecording(row: typeof recordings.$inferSelect): Recording {
     languageDetected: row.languageDetected,
     errorMessage: row.errorMessage,
     createdAt: row.createdAt,
-    updatedAt: row.updatedAt
+    updatedAt: row.updatedAt,
   };
 }
 
@@ -96,9 +96,9 @@ app.post("/api/recordings/:id/transcribe", async (c) => {
     return c.json(
       {
         error: `Cannot start transcription from status "${currentStatus}"`,
-        currentStatus
+        currentStatus,
       },
-      409
+      409,
     );
   }
 
@@ -107,9 +107,9 @@ app.post("/api/recordings/:id/transcribe", async (c) => {
     return c.json(
       {
         error: `Cannot start transcription from status "${currentStatus}"`,
-        currentStatus
+        currentStatus,
       },
-      409
+      409,
     );
   }
 

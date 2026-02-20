@@ -11,17 +11,17 @@ const execFileAsync = promisify(execFile);
 const ffprobeStreamSchema = z.object({
   codec_type: z.string(),
   sample_rate: z.string().optional(),
-  channels: z.number().optional()
+  channels: z.number().optional(),
 });
 
 const ffprobeFormatSchema = z.object({
   duration: z.string(),
-  size: z.string()
+  size: z.string(),
 });
 
 const ffprobeOutputSchema = z.object({
   streams: z.array(ffprobeStreamSchema),
-  format: ffprobeFormatSchema
+  format: ffprobeFormatSchema,
 });
 
 // ─── Public interface ──────────────────────────────────────────────────────────
@@ -49,7 +49,7 @@ export async function probeAudioFile(filePath: string): Promise<AudioMetadata> {
       "json",
       "-show_format",
       "-show_streams",
-      filePath
+      filePath,
     ]));
   } catch (cause) {
     throw new Error(`ffprobe failed for "${filePath}": ${String(cause)}`);
@@ -65,7 +65,7 @@ export async function probeAudioFile(filePath: string): Promise<AudioMetadata> {
   const parsed = ffprobeOutputSchema.safeParse(raw);
   if (!parsed.success) {
     throw new Error(
-      `ffprobe output has unexpected shape for "${filePath}": ${parsed.error.message}`
+      `ffprobe output has unexpected shape for "${filePath}": ${parsed.error.message}`,
     );
   }
 
@@ -101,7 +101,7 @@ export async function probeAudioFile(filePath: string): Promise<AudioMetadata> {
   const supportedFormats: readonly string[] = SUPPORTED_AUDIO_FORMATS;
   if (!supportedFormats.includes(ext)) {
     throw new Error(
-      `Unsupported audio format extension ".${ext}" for "${filePath}". Supported: ${SUPPORTED_AUDIO_FORMATS.join(", ")}`
+      `Unsupported audio format extension ".${ext}" for "${filePath}". Supported: ${SUPPORTED_AUDIO_FORMATS.join(", ")}`,
     );
   }
 
@@ -110,6 +110,6 @@ export async function probeAudioFile(filePath: string): Promise<AudioMetadata> {
     sampleRate,
     channels,
     format: ext as "wav" | "mp3" | "m4a" | "flac" | "ogg",
-    fileSizeBytes
+    fileSizeBytes,
   };
 }

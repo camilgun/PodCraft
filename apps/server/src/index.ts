@@ -16,7 +16,7 @@ app.get("/", (context) => {
 
 app.get("/health", (context) => {
   const payload: HealthResponse = {
-    status: "ok"
+    status: "ok",
   };
 
   const parsedPayload = healthResponseSchema.safeParse(payload);
@@ -34,9 +34,9 @@ app.route("/", filesRoutes);
 serve(
   {
     fetch: app.fetch,
-    port: config.port
+    port: config.port,
   },
   (info) => {
     console.log(`PodCraft server listening on http://localhost:${info.port}`);
-  }
+  },
 );

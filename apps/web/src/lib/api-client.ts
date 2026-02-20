@@ -4,11 +4,7 @@ import {
   librarySyncResponseSchema,
   transcribeStartResponseSchema,
 } from "@podcraft/shared";
-import type {
-  Recording,
-  LibrarySyncResponse,
-  TranscribeStartResponse,
-} from "@podcraft/shared";
+import type { Recording, LibrarySyncResponse, TranscribeStartResponse } from "@podcraft/shared";
 
 export type ApiError = {
   kind: "network" | "validation" | "server";
@@ -16,14 +12,9 @@ export type ApiError = {
   status?: number;
 };
 
-export type ApiResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: ApiError };
+export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: ApiError };
 
-async function apiFetch<T>(
-  url: string,
-  init?: RequestInit
-): Promise<ApiResult<T>> {
+async function apiFetch<T>(url: string, init?: RequestInit): Promise<ApiResult<T>> {
   let response: Response;
   try {
     response = await fetch(url, init);
@@ -106,9 +97,7 @@ export async function triggerLibrarySync(): Promise<ApiResult<LibrarySyncRespons
   return { ok: true, data: parsed.data };
 }
 
-export async function triggerTranscribe(
-  id: string
-): Promise<ApiResult<TranscribeStartResponse>> {
+export async function triggerTranscribe(id: string): Promise<ApiResult<TranscribeStartResponse>> {
   const result = await apiFetch<unknown>(`/api/recordings/${id}/transcribe`, {
     method: "POST",
   });

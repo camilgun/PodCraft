@@ -12,7 +12,7 @@ export {
   mlAlignedWordSchema,
   alignResponseSchema,
   qualityWindowSchema,
-  qualityResponseSchema
+  qualityResponseSchema,
 } from "./schemas.js";
 export type {
   HealthResponseFromSchema,
@@ -20,7 +20,7 @@ export type {
   MlAlignedWordFromSchema,
   AlignResponseFromSchema,
   QualityWindowFromSchema,
-  QualityResponseFromSchema
+  QualityResponseFromSchema,
 } from "./schemas.js";
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
@@ -35,7 +35,7 @@ export type {
   QualityScore,
   Chapter,
   EditProposal,
-  AnalysisResult
+  AnalysisResult,
 } from "./types.js";
 
 export {
@@ -51,7 +51,7 @@ export {
   qualityScoreSchema,
   chapterSchema,
   editProposalSchema,
-  analysisResultSchema
+  analysisResultSchema,
 } from "./schemas.js";
 export type {
   RecordingStatusFromSchema,
@@ -66,7 +66,7 @@ export type {
   QualityScoreFromSchema,
   ChapterFromSchema,
   EditProposalFromSchema,
-  AnalysisResultFromSchema
+  AnalysisResultFromSchema,
 } from "./schemas.js";
 
 // ─── State machine ────────────────────────────────────────────────────────────
@@ -77,5 +77,5 @@ export {
   QUALITY_THRESHOLD_DEFAULT,
   SUPPORTED_AUDIO_FORMATS,
   ML_SERVICE_BASE_URL_DEFAULT,
-  FILE_HASH_WINDOW_BYTES
+  FILE_HASH_WINDOW_BYTES,
 } from "./constants.js";

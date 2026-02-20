@@ -13,27 +13,23 @@ const STATUS_LABELS: Record<RecordingStatus, string> = {
   FILE_MISSING: "File Missing",
 };
 
-const STATUS_VARIANT: Record<
-  RecordingStatus,
-  "default" | "secondary" | "destructive" | "outline"
-> = {
-  IMPORTED: "secondary",
-  TRANSCRIBING: "default",
-  TRANSCRIBED: "default",
-  ANALYZING: "default",
-  REVIEWED: "default",
-  EXPORTING: "default",
-  COMPLETED: "default",
-  ERROR: "destructive",
-  FILE_MISSING: "destructive",
-};
+const STATUS_VARIANT: Record<RecordingStatus, "default" | "secondary" | "destructive" | "outline"> =
+  {
+    IMPORTED: "secondary",
+    TRANSCRIBING: "default",
+    TRANSCRIBED: "default",
+    ANALYZING: "default",
+    REVIEWED: "default",
+    EXPORTING: "default",
+    COMPLETED: "default",
+    ERROR: "destructive",
+    FILE_MISSING: "destructive",
+  };
 
 interface StatusBadgeProps {
   status: RecordingStatus;
 }
 
 export function StatusBadge({ status }: StatusBadgeProps) {
-  return (
-    <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABELS[status]}</Badge>
-  );
+  return <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABELS[status]}</Badge>;
 }

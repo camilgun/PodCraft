@@ -15,10 +15,7 @@ sqlite.pragma("foreign_keys = ON");
 
 export const db = drizzle(sqlite, { schema });
 
-const migrationsFolder = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "migrations"
-);
+const migrationsFolder = path.join(path.dirname(fileURLToPath(import.meta.url)), "migrations");
 
 // Auto-migrate on every startup. Safe to run repeatedly — only applies new migrations.
 migrate(db, { migrationsFolder });

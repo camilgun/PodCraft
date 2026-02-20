@@ -47,8 +47,7 @@ export function RecordingDetailPage() {
     setActionError(`Unable to start transcription: ${result.error.message}`);
   }
 
-  const canTranscribe =
-    state.kind === "loaded" && canStartTranscription(state.recording.status);
+  const canTranscribe = state.kind === "loaded" && canStartTranscription(state.recording.status);
 
   return (
     <div className="min-h-screen bg-background">
@@ -93,9 +92,7 @@ export function RecordingDetailPage() {
             {/* Audio player */}
             {state.recording.status !== "FILE_MISSING" && (
               <div className="rounded-lg border bg-card p-4">
-                <p className="mb-3 text-sm font-medium text-muted-foreground">
-                  Audio Player
-                </p>
+                <p className="mb-3 text-sm font-medium text-muted-foreground">Audio Player</p>
                 <audio
                   controls
                   className="w-full"
@@ -112,9 +109,7 @@ export function RecordingDetailPage() {
               <div>
                 {actionError != null && (
                   <div className="mb-3 rounded-lg border border-destructive/20 bg-destructive/5 p-3">
-                    <p className="text-sm font-medium text-destructive">
-                      {actionError}
-                    </p>
+                    <p className="text-sm font-medium text-destructive">{actionError}</p>
                   </div>
                 )}
                 <Button
@@ -129,27 +124,19 @@ export function RecordingDetailPage() {
 
             {/* Metadata */}
             <div className="rounded-lg border bg-card p-4">
-              <p className="mb-3 text-sm font-medium text-muted-foreground">
-                Metadata
-              </p>
+              <p className="mb-3 text-sm font-medium text-muted-foreground">Metadata</p>
               <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
                 <div>
                   <dt className="text-muted-foreground">Durata</dt>
-                  <dd className="font-medium">
-                    {formatDuration(state.recording.durationSeconds)}
-                  </dd>
+                  <dd className="font-medium">{formatDuration(state.recording.durationSeconds)}</dd>
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Formato</dt>
-                  <dd className="font-medium uppercase">
-                    {state.recording.format}
-                  </dd>
+                  <dd className="font-medium uppercase">{state.recording.format}</dd>
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Dimensione</dt>
-                  <dd className="font-medium">
-                    {formatFileSize(state.recording.fileSizeBytes)}
-                  </dd>
+                  <dd className="font-medium">{formatFileSize(state.recording.fileSizeBytes)}</dd>
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Sample Rate</dt>
@@ -165,31 +152,24 @@ export function RecordingDetailPage() {
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Aggiunto il</dt>
-                  <dd className="font-medium">
-                    {formatDate(state.recording.createdAt)}
-                  </dd>
+                  <dd className="font-medium">{formatDate(state.recording.createdAt)}</dd>
                 </div>
                 {state.recording.languageDetected != null && (
                   <div>
                     <dt className="text-muted-foreground">Lingua</dt>
-                    <dd className="font-medium">
-                      {state.recording.languageDetected}
-                    </dd>
+                    <dd className="font-medium">{state.recording.languageDetected}</dd>
                   </div>
                 )}
               </dl>
             </div>
 
             {/* Error message */}
-            {state.recording.status === "ERROR" &&
-              state.recording.errorMessage != null && (
-                <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4">
-                  <p className="text-sm font-medium text-destructive">Errore</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {state.recording.errorMessage}
-                  </p>
-                </div>
-              )}
+            {state.recording.status === "ERROR" && state.recording.errorMessage != null && (
+              <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4">
+                <p className="text-sm font-medium text-destructive">Errore</p>
+                <p className="mt-1 text-sm text-muted-foreground">{state.recording.errorMessage}</p>
+              </div>
+            )}
           </div>
         )}
       </main>

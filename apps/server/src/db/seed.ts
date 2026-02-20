@@ -19,13 +19,13 @@ const now = new Date().toISOString();
 const seedRecordingIds = {
   imported: "seed-rec-imported",
   transcribed: "seed-rec-transcribed",
-  error: "seed-rec-error"
+  error: "seed-rec-error",
 } as const;
 
 const seedRecordingIdList = [
   seedRecordingIds.imported,
   seedRecordingIds.transcribed,
-  seedRecordingIds.error
+  seedRecordingIds.error,
 ] as const;
 
 type RecordingInsert = typeof recordings.$inferInsert;
@@ -45,8 +45,8 @@ const segments: AlignedSegment[] = [
       { word: "parliamo", startTime: 1.3, endTime: 1.8, confidence: 0.94 },
       { word: "di", startTime: 1.9, endTime: 2.0, confidence: 0.99 },
       { word: "intelligenza", startTime: 2.1, endTime: 2.7, confidence: 0.92 },
-      { word: "artificiale.", startTime: 2.8, endTime: 3.2, confidence: 0.91 }
-    ]
+      { word: "artificiale.", startTime: 2.8, endTime: 3.2, confidence: 0.91 },
+    ],
   },
   {
     id: "seed-seg-002",
@@ -63,9 +63,9 @@ const segments: AlignedSegment[] = [
       { word: "sta", startTime: 5.2, endTime: 5.4, confidence: 0.95 },
       { word: "molto", startTime: 5.5, endTime: 5.8, confidence: 0.93 },
       { word: "a", startTime: 5.9, endTime: 6.0, confidence: 0.99 },
-      { word: "cuore.", startTime: 6.1, endTime: 6.5, confidence: 0.91 }
-    ]
-  }
+      { word: "cuore.", startTime: 6.1, endTime: 6.5, confidence: 0.91 },
+    ],
+  },
 ];
 
 const seedRecordings: RecordingInsert[] = [
@@ -80,7 +80,7 @@ const seedRecordings: RecordingInsert[] = [
     fileSizeBytes: 9_437_184,
     status: "IMPORTED",
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
   },
   {
     id: seedRecordingIds.transcribed,
@@ -94,7 +94,7 @@ const seedRecordings: RecordingInsert[] = [
     status: "TRANSCRIBED",
     languageDetected: "it",
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
   },
   {
     id: seedRecordingIds.error,
@@ -108,8 +108,8 @@ const seedRecordings: RecordingInsert[] = [
     status: "ERROR",
     errorMessage: "ML service timeout after 120s — audio may be corrupted",
     createdAt: now,
-    updatedAt: now
-  }
+    updatedAt: now,
+  },
 ];
 
 const seedTranscriptions: TranscriptionInsert[] = [
@@ -120,8 +120,8 @@ const seedTranscriptions: TranscriptionInsert[] = [
     segments: JSON.stringify(segments),
     modelUsed: "mlx-community/Qwen3-ASR-1.7B-bf16",
     languageDetected: "it",
-    createdAt: now
-  }
+    createdAt: now,
+  },
 ];
 
 const seedQualityScores: QualityScoreInsert[] = [
@@ -137,7 +137,7 @@ const seedQualityScores: QualityScoreInsert[] = [
     loudness: 3.9,
     flagged: false,
     flaggedBy: "auto",
-    createdAt: now
+    createdAt: now,
   },
   {
     id: "seed-qs-002",
@@ -151,8 +151,8 @@ const seedQualityScores: QualityScoreInsert[] = [
     loudness: 2.5,
     flagged: true,
     flaggedBy: "auto",
-    createdAt: now
-  }
+    createdAt: now,
+  },
 ];
 
 function isSeedMode(value: string): value is SeedMode {
@@ -169,29 +169,18 @@ function parseSeedMode(rawMode: string | undefined): SeedMode {
     return normalized;
   }
 
-  throw new Error(
-    `Invalid seed mode "${rawMode}". Use one of: ${SEED_MODES.join(", ")}.`
-  );
+  throw new Error(`Invalid seed mode "${rawMode}". Use one of: ${SEED_MODES.join(", ")}.`);
 }
 
 async function purgeSeedRows(): Promise<void> {
-  await db
-    .delete(analysisResults)
-    .where(inArray(analysisResults.recordingId, seedRecordingIdList));
-  await db
-    .delete(qualityScores)
-    .where(inArray(qualityScores.recordingId, seedRecordingIdList));
-  await db
-    .delete(transcriptions)
-    .where(inArray(transcriptions.recordingId, seedRecordingIdList));
+  await db.delete(analysisResults).where(inArray(analysisResults.recordingId, seedRecordingIdList));
+  await db.delete(qualityScores).where(inArray(qualityScores.recordingId, seedRecordingIdList));
+  await db.delete(transcriptions).where(inArray(transcriptions.recordingId, seedRecordingIdList));
   await db.delete(recordings).where(inArray(recordings.id, seedRecordingIdList));
 }
 
 async function appendSeedRows(): Promise<void> {
-  await db
-    .insert(recordings)
-    .values(seedRecordings)
-    .onConflictDoNothing({ target: recordings.id });
+  await db.insert(recordings).values(seedRecordings).onConflictDoNothing({ target: recordings.id });
   await db
     .insert(transcriptions)
     .values(seedTranscriptions)

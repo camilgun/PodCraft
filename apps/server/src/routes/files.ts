@@ -14,7 +14,7 @@ const AUDIO_CONTENT_TYPE: Record<string, string> = {
   mp3: "audio/mpeg",
   m4a: "audio/mp4",
   flac: "audio/flac",
-  ogg: "audio/ogg"
+  ogg: "audio/ogg",
 };
 
 /**
@@ -28,7 +28,7 @@ app.get("/api/files/:id/audio", async (c) => {
       id: recordings.id,
       filePath: recordings.filePath,
       format: recordings.format,
-      status: recordings.status
+      status: recordings.status,
     })
     .from(recordings)
     .where(eq(recordings.id, id))

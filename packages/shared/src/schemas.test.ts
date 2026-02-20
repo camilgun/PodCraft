@@ -29,7 +29,7 @@ import {
   type TranscriptionFromSchema,
   type QualityScoreFromSchema,
   type EditProposalFromSchema,
-  type AnalysisResultFromSchema
+  type AnalysisResultFromSchema,
 } from "./index";
 
 describe("healthResponseSchema", () => {
@@ -51,7 +51,7 @@ describe("transcribeResponseSchema", () => {
       language: "it",
       inference_time_seconds: 1.2,
       audio_duration_seconds: 60.5,
-      model_used: "mlx-community/Qwen3-ASR-1.7B-bf16"
+      model_used: "mlx-community/Qwen3-ASR-1.7B-bf16",
     });
 
     expect(parsed.language).toBe("it");
@@ -64,7 +64,7 @@ describe("transcribeResponseSchema", () => {
       language: "Italian",
       inference_time_seconds: -1,
       audio_duration_seconds: 0,
-      model_used: "mlx-community/Qwen3-ASR-1.7B-bf16"
+      model_used: "mlx-community/Qwen3-ASR-1.7B-bf16",
     });
 
     expect(parsed.success).toBe(false);
@@ -76,7 +76,7 @@ describe("transcribeResponseSchema", () => {
       language: "unknown",
       inference_time_seconds: 1.2,
       audio_duration_seconds: 60.5,
-      model_used: "mlx-community/Qwen3-ASR-1.7B-bf16"
+      model_used: "mlx-community/Qwen3-ASR-1.7B-bf16",
     });
 
     expect(parsed.language).toBe("unknown");
@@ -88,10 +88,10 @@ describe("alignResponseSchema", () => {
     const parsed: AlignResponseFromSchema = alignResponseSchema.parse({
       words: [
         { word: "ciao", start_time: 0.1, end_time: 0.4 },
-        { word: "mondo", start_time: 0.5, end_time: 0.9 }
+        { word: "mondo", start_time: 0.5, end_time: 0.9 },
       ],
       inference_time_seconds: 0.8,
-      model_used: "mlx-community/Qwen3-ForcedAligner-0.6B-bf16"
+      model_used: "mlx-community/Qwen3-ForcedAligner-0.6B-bf16",
     });
 
     expect(parsed.words).toHaveLength(2);
@@ -102,10 +102,10 @@ describe("alignResponseSchema", () => {
     const result = alignResponseSchema.safeParse({
       words: [
         { word: "ciao", start_time: 1.0, end_time: 0.5 },
-        { word: "mondo", start_time: -1, end_time: 0.9 }
+        { word: "mondo", start_time: -1, end_time: 0.9 },
       ],
       inference_time_seconds: -0.2,
-      model_used: "mlx-community/Qwen3-ForcedAligner-0.6B-bf16"
+      model_used: "mlx-community/Qwen3-ForcedAligner-0.6B-bf16",
     });
 
     expect(result.success).toBe(false);
@@ -121,7 +121,7 @@ describe("qualityWindowSchema", () => {
       noisiness: 2.4,
       discontinuity: 2.1,
       coloration: 2.2,
-      loudness: 3.0
+      loudness: 3.0,
     });
 
     expect(parsed.window_start).toBe(0);
@@ -137,7 +137,7 @@ describe("qualityWindowSchema", () => {
       noisiness: 0,
       discontinuity: -1,
       coloration: 2.2,
-      loudness: 3.0
+      loudness: 3.0,
     });
 
     expect(result.success).toBe(false);
@@ -155,11 +155,11 @@ describe("qualityResponseSchema", () => {
           noisiness: 2.1,
           discontinuity: 2.0,
           coloration: 2.3,
-          loudness: 3.1
-        }
+          loudness: 3.1,
+        },
       ],
       average_mos: 3.2,
-      inference_time_seconds: 0.72
+      inference_time_seconds: 0.72,
     });
 
     expect(parsed.windows).toHaveLength(1);
@@ -170,7 +170,7 @@ describe("qualityResponseSchema", () => {
     const result = qualityResponseSchema.safeParse({
       windows: [],
       average_mos: 0.8,
-      inference_time_seconds: -0.1
+      inference_time_seconds: -0.1,
     });
 
     expect(result.success).toBe(false);
@@ -190,7 +190,7 @@ describe("recordingStatusSchema", () => {
       "EXPORTING",
       "COMPLETED",
       "ERROR",
-      "FILE_MISSING"
+      "FILE_MISSING",
     ];
     for (const status of statuses) {
       expect(recordingStatusSchema.safeParse(status).success).toBe(true);
@@ -215,7 +215,7 @@ describe("recordingSchema", () => {
     fileSizeBytes: 1024000,
     status: "IMPORTED",
     createdAt: "2026-02-18T10:00:00Z",
-    updatedAt: "2026-02-18T10:00:00Z"
+    updatedAt: "2026-02-18T10:00:00Z",
   };
 
   it("accepts a valid recording", () => {
@@ -229,7 +229,7 @@ describe("recordingSchema", () => {
     const parsed: RecordingFromSchema = recordingSchema.parse({
       ...validRecording,
       languageDetected: "it",
-      errorMessage: undefined
+      errorMessage: undefined,
     });
     expect(parsed.languageDetected).toBe("it");
   });
@@ -240,7 +240,7 @@ describe("recordingSchema", () => {
       fileHash: null,
       fileLastCheckedAt: null,
       languageDetected: null,
-      errorMessage: null
+      errorMessage: null,
     });
     expect(parsed.fileHash).toBeNull();
     expect(parsed.fileLastCheckedAt).toBeNull();
@@ -251,7 +251,7 @@ describe("recordingSchema", () => {
   it("accepts FILE_MISSING status", () => {
     const parsed: RecordingFromSchema = recordingSchema.parse({
       ...validRecording,
-      status: "FILE_MISSING"
+      status: "FILE_MISSING",
     });
     expect(parsed.status).toBe("FILE_MISSING");
   });
@@ -260,7 +260,7 @@ describe("recordingSchema", () => {
     const parsed: RecordingFromSchema = recordingSchema.parse({
       ...validRecording,
       fileHash: "a".repeat(64),
-      fileLastCheckedAt: "2026-02-18T10:00:00Z"
+      fileLastCheckedAt: "2026-02-18T10:00:00Z",
     });
     expect(parsed.fileHash).toBe("a".repeat(64));
     expect(parsed.fileLastCheckedAt).toBe("2026-02-18T10:00:00Z");
@@ -273,15 +273,15 @@ describe("recordingSchema", () => {
   });
 
   it("rejects fileHash that is not a 64-char hex string", () => {
-    expect(
-      recordingSchema.safeParse({ ...validRecording, fileHash: "not-a-hash" }).success
-    ).toBe(false);
-    expect(
-      recordingSchema.safeParse({ ...validRecording, fileHash: "A".repeat(64) }).success
-    ).toBe(false); // uppercase not allowed
-    expect(
-      recordingSchema.safeParse({ ...validRecording, fileHash: "a".repeat(63) }).success
-    ).toBe(false); // wrong length
+    expect(recordingSchema.safeParse({ ...validRecording, fileHash: "not-a-hash" }).success).toBe(
+      false,
+    );
+    expect(recordingSchema.safeParse({ ...validRecording, fileHash: "A".repeat(64) }).success).toBe(
+      false,
+    ); // uppercase not allowed
+    expect(recordingSchema.safeParse({ ...validRecording, fileHash: "a".repeat(63) }).success).toBe(
+      false,
+    ); // wrong length
   });
 
   it("rejects an invalid audio format", () => {
@@ -297,7 +297,7 @@ describe("recordingSchema", () => {
   it("rejects invalid datetime", () => {
     const result = recordingSchema.safeParse({
       ...validRecording,
-      createdAt: "not-a-date"
+      createdAt: "not-a-date",
     });
     expect(result.success).toBe(false);
   });
@@ -305,7 +305,7 @@ describe("recordingSchema", () => {
   it("rejects datetime with valid prefix plus trailing garbage", () => {
     const result = recordingSchema.safeParse({
       ...validRecording,
-      createdAt: "2026-02-18T10:00:00Z_extra"
+      createdAt: "2026-02-18T10:00:00Z_extra",
     });
     expect(result.success).toBe(false);
   });
@@ -328,19 +328,19 @@ describe("recordingsListResponseSchema", () => {
     fileSizeBytes: 1024000,
     status: "IMPORTED",
     createdAt: "2026-02-18T10:00:00Z",
-    updatedAt: "2026-02-18T10:00:00Z"
+    updatedAt: "2026-02-18T10:00:00Z",
   } as const;
 
   it("accepts a valid recordings list payload", () => {
     const parsed: RecordingsListResponseFromSchema = recordingsListResponseSchema.parse({
-      recordings: [validRecording]
+      recordings: [validRecording],
     });
     expect(parsed.recordings).toHaveLength(1);
   });
 
   it("rejects payloads with invalid recording entries", () => {
     const result = recordingsListResponseSchema.safeParse({
-      recordings: [{ ...validRecording, format: "aac" }]
+      recordings: [{ ...validRecording, format: "aac" }],
     });
     expect(result.success).toBe(false);
   });
@@ -358,19 +358,19 @@ describe("recordingDetailResponseSchema", () => {
     fileSizeBytes: 1024000,
     status: "IMPORTED",
     createdAt: "2026-02-18T10:00:00Z",
-    updatedAt: "2026-02-18T10:00:00Z"
+    updatedAt: "2026-02-18T10:00:00Z",
   } as const;
 
   it("accepts a valid recording detail payload", () => {
     const parsed: RecordingDetailResponseFromSchema = recordingDetailResponseSchema.parse({
-      recording: validRecording
+      recording: validRecording,
     });
     expect(parsed.recording.id).toBe("rec-001");
   });
 
   it("rejects payloads with invalid recording detail", () => {
     const result = recordingDetailResponseSchema.safeParse({
-      recording: { ...validRecording, status: "UNKNOWN" }
+      recording: { ...validRecording, status: "UNKNOWN" },
     });
     expect(result.success).toBe(false);
   });
@@ -382,7 +382,7 @@ describe("alignedWordSchema (domain)", () => {
       word: "ciao",
       startTime: 0.1,
       endTime: 0.4,
-      confidence: 0.95
+      confidence: 0.95,
     });
     expect(parsed.word).toBe("ciao");
     expect(parsed.confidence).toBe(0.95);
@@ -393,7 +393,7 @@ describe("alignedWordSchema (domain)", () => {
       word: "ciao",
       startTime: 1.0,
       endTime: 0.5,
-      confidence: 0.9
+      confidence: 0.9,
     });
     expect(result.success).toBe(false);
   });
@@ -403,7 +403,7 @@ describe("alignedWordSchema (domain)", () => {
       word: "ciao",
       startTime: 0.1,
       endTime: 0.4,
-      confidence: 1.5
+      confidence: 1.5,
     });
     expect(result.success).toBe(false);
   });
@@ -419,7 +419,7 @@ describe("alignedSegmentSchema", () => {
       startTime: 0.1,
       endTime: 1.0,
       orderIndex: 0,
-      words: [validWord, { word: "mondo", startTime: 0.5, endTime: 0.9, confidence: 0.85 }]
+      words: [validWord, { word: "mondo", startTime: 0.5, endTime: 0.9, confidence: 0.85 }],
     });
     expect(parsed.id).toBe("seg-001");
     expect(parsed.words).toHaveLength(2);
@@ -432,7 +432,7 @@ describe("alignedSegmentSchema", () => {
       startTime: 2.0,
       endTime: 1.0,
       orderIndex: 0,
-      words: [validWord]
+      words: [validWord],
     });
     expect(result.success).toBe(false);
   });
@@ -444,7 +444,7 @@ describe("alignedSegmentSchema", () => {
       startTime: 0.0,
       endTime: 1.0,
       orderIndex: 0,
-      words: []
+      words: [],
     });
     expect(result.success).toBe(true);
   });
@@ -457,7 +457,7 @@ describe("transcriptionSchema", () => {
     startTime: 0.1,
     endTime: 1.0,
     orderIndex: 0,
-    words: [{ word: "ciao", startTime: 0.1, endTime: 0.4, confidence: 0.9 }]
+    words: [{ word: "ciao", startTime: 0.1, endTime: 0.4, confidence: 0.9 }],
   };
 
   it("accepts a valid transcription", () => {
@@ -468,7 +468,7 @@ describe("transcriptionSchema", () => {
       segments: [validSegment],
       modelUsed: "mlx-community/Qwen3-ASR-1.7B-bf16",
       languageDetected: "it",
-      createdAt: "2026-02-18T10:00:00Z"
+      createdAt: "2026-02-18T10:00:00Z",
     });
     expect(parsed.segments).toHaveLength(1);
     expect(parsed.languageDetected).toBe("it");
@@ -482,7 +482,7 @@ describe("transcriptionSchema", () => {
       segments: [],
       modelUsed: "model",
       languageDetected: "it",
-      createdAt: "2026-02-18T10:00:00Z"
+      createdAt: "2026-02-18T10:00:00Z",
     });
     expect(result.success).toBe(false);
   });
@@ -501,7 +501,7 @@ describe("qualityScoreSchema", () => {
     loudness: 3.0,
     flagged: false,
     flaggedBy: "auto",
-    createdAt: "2026-02-18T10:00:00Z"
+    createdAt: "2026-02-18T10:00:00Z",
   };
 
   it("accepts a valid quality score", () => {
@@ -515,7 +515,7 @@ describe("qualityScoreSchema", () => {
     const parsed: QualityScoreFromSchema = qualityScoreSchema.parse({
       ...validScore,
       flagged: true,
-      flaggedBy: "user"
+      flaggedBy: "user",
     });
     expect(parsed.flaggedBy).toBe("user");
   });
@@ -529,7 +529,7 @@ describe("qualityScoreSchema", () => {
     const result = qualityScoreSchema.safeParse({
       ...validScore,
       windowStart: 10,
-      windowEnd: 9
+      windowEnd: 9,
     });
     expect(result.success).toBe(false);
   });
@@ -552,7 +552,7 @@ describe("editProposalSchema", () => {
     confidence: 0.9,
     status: "proposed",
     createdAt: "2026-02-18T10:00:00Z",
-    updatedAt: "2026-02-18T10:00:00Z"
+    updatedAt: "2026-02-18T10:00:00Z",
   };
 
   it("accepts a valid cut proposal", () => {
@@ -564,7 +564,7 @@ describe("editProposalSchema", () => {
   it("accepts optional subtype", () => {
     const parsed: EditProposalFromSchema = editProposalSchema.parse({
       ...validProposal,
-      subtype: "filler"
+      subtype: "filler",
     });
     expect(parsed.subtype).toBe("filler");
   });
@@ -575,7 +575,7 @@ describe("editProposalSchema", () => {
       subtype: null,
       proposedPosition: null,
       userStartTime: null,
-      userEndTime: null
+      userEndTime: null,
     });
     expect(parsed.subtype).toBeNull();
     expect(parsed.proposedPosition).toBeNull();
@@ -587,7 +587,7 @@ describe("editProposalSchema", () => {
     const parsed: EditProposalFromSchema = editProposalSchema.parse({
       ...validProposal,
       type: "reorder",
-      proposedPosition: 3
+      proposedPosition: 3,
     });
     expect(parsed.type).toBe("reorder");
     expect(parsed.proposedPosition).toBe(3);
@@ -612,7 +612,7 @@ describe("editProposalSchema", () => {
     const result = editProposalSchema.safeParse({
       ...validProposal,
       startTime: 10,
-      endTime: 9
+      endTime: 9,
     });
     expect(result.success).toBe(false);
   });
@@ -621,7 +621,7 @@ describe("editProposalSchema", () => {
     const result = editProposalSchema.safeParse({
       ...validProposal,
       userStartTime: 1.2,
-      userEndTime: null
+      userEndTime: null,
     });
     expect(result.success).toBe(false);
   });
@@ -630,7 +630,7 @@ describe("editProposalSchema", () => {
     const result = editProposalSchema.safeParse({
       ...validProposal,
       userStartTime: undefined,
-      userEndTime: 1.5
+      userEndTime: 1.5,
     });
     expect(result.success).toBe(false);
   });
@@ -639,7 +639,7 @@ describe("editProposalSchema", () => {
     const result = editProposalSchema.safeParse({
       ...validProposal,
       userStartTime: 4,
-      userEndTime: 3
+      userEndTime: 3,
     });
     expect(result.success).toBe(false);
   });
@@ -648,16 +648,14 @@ describe("editProposalSchema", () => {
     const result = editProposalSchema.safeParse({
       ...validProposal,
       userStartTime: 3,
-      userEndTime: 4
+      userEndTime: 4,
     });
     expect(result.success).toBe(true);
   });
 
   it("accepts all valid statuses", () => {
     for (const status of ["proposed", "accepted", "rejected", "modified"]) {
-      expect(
-        editProposalSchema.safeParse({ ...validProposal, status }).success
-      ).toBe(true);
+      expect(editProposalSchema.safeParse({ ...validProposal, status }).success).toBe(true);
     }
   });
 });
@@ -667,7 +665,7 @@ describe("chapterSchema", () => {
     const result = chapterSchema.parse({
       title: "Introduzione",
       startTime: 0,
-      endTime: 120
+      endTime: 120,
     });
     expect(result.title).toBe("Introduzione");
   });
@@ -676,7 +674,7 @@ describe("chapterSchema", () => {
     const result = chapterSchema.safeParse({
       title: "Test",
       startTime: 60,
-      endTime: 30
+      endTime: 30,
     });
     expect(result.success).toBe(false);
   });
@@ -694,7 +692,7 @@ describe("analysisResultSchema", () => {
     confidence: 0.9,
     status: "proposed",
     createdAt: "2026-02-18T10:00:00Z",
-    updatedAt: "2026-02-18T10:00:00Z"
+    updatedAt: "2026-02-18T10:00:00Z",
   };
 
   it("accepts a valid analysis result", () => {
@@ -706,7 +704,7 @@ describe("analysisResultSchema", () => {
       chapters: [{ title: "Intro", startTime: 0, endTime: 30 }],
       editorialNotes: "Buon ritmo generale, alcuni filler da rimuovere",
       proposals: [validProposal],
-      createdAt: "2026-02-18T10:00:00Z"
+      createdAt: "2026-02-18T10:00:00Z",
     });
     expect(parsed.chapters).toHaveLength(1);
     expect(parsed.proposals).toHaveLength(1);
@@ -721,7 +719,7 @@ describe("analysisResultSchema", () => {
       chapters: [],
       editorialNotes: "Note",
       proposals: [],
-      createdAt: "2026-02-18T10:00:00Z"
+      createdAt: "2026-02-18T10:00:00Z",
     });
     expect(result.success).toBe(true);
   });

@@ -21,12 +21,12 @@ export const recordings = sqliteTable(
     languageDetected: text("language_detected"),
     errorMessage: text("error_message"),
     createdAt: text("created_at").notNull(),
-    updatedAt: text("updated_at").notNull()
+    updatedAt: text("updated_at").notNull(),
   },
   (table) => ({
     recordingsFilePathUnique: uniqueIndex("recordings_file_path_unique").on(table.filePath),
-    recordingsFileHashIdx: index("recordings_file_hash_idx").on(table.fileHash)
-  })
+    recordingsFileHashIdx: index("recordings_file_hash_idx").on(table.fileHash),
+  }),
 );
 
 export const transcriptions = sqliteTable("transcriptions", {
@@ -39,7 +39,7 @@ export const transcriptions = sqliteTable("transcriptions", {
   segments: text("segments").notNull(),
   modelUsed: text("model_used").notNull(),
   languageDetected: text("language_detected").notNull(),
-  createdAt: text("created_at").notNull()
+  createdAt: text("created_at").notNull(),
 });
 
 export const qualityScores = sqliteTable("quality_scores", {
@@ -57,7 +57,7 @@ export const qualityScores = sqliteTable("quality_scores", {
   // SQLite stores booleans as integer (0/1); mode:'boolean' makes Drizzle convert automatically
   flagged: integer("flagged", { mode: "boolean" }).notNull().default(false),
   flaggedBy: text("flagged_by").notNull().default("auto"),
-  createdAt: text("created_at").notNull()
+  createdAt: text("created_at").notNull(),
 });
 
 export const analysisResults = sqliteTable("analysis_results", {
@@ -70,7 +70,7 @@ export const analysisResults = sqliteTable("analysis_results", {
   // Chapter[] serialized as JSON
   chapters: text("chapters").notNull(),
   editorialNotes: text("editorial_notes").notNull(),
-  createdAt: text("created_at").notNull()
+  createdAt: text("created_at").notNull(),
 });
 
 export const editProposals = sqliteTable("edit_proposals", {
@@ -90,5 +90,5 @@ export const editProposals = sqliteTable("edit_proposals", {
   userStartTime: real("user_start_time"),
   userEndTime: real("user_end_time"),
   createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull()
+  updatedAt: text("updated_at").notNull(),
 });

@@ -23,22 +23,19 @@ export function LibraryPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const loadRecordings = useCallback(
-    async (options: { showLoading?: boolean } = {}) => {
-      const { showLoading = true } = options;
-      if (showLoading) {
-        setState({ kind: "loading" });
-      }
+  const loadRecordings = useCallback(async (options: { showLoading?: boolean } = {}) => {
+    const { showLoading = true } = options;
+    if (showLoading) {
+      setState({ kind: "loading" });
+    }
 
-      const result = await getRecordings();
-      if (result.ok) {
-        setState({ kind: "loaded", recordings: result.data });
-      } else {
-        setState({ kind: "error", message: result.error.message });
-      }
-    },
-    []
-  );
+    const result = await getRecordings();
+    if (result.ok) {
+      setState({ kind: "loaded", recordings: result.data });
+    } else {
+      setState({ kind: "error", message: result.error.message });
+    }
+  }, []);
 
   const refreshRecordingsAfterSync = useCallback(async () => {
     for (const delayMs of SYNC_REFRESH_DELAYS_MS) {
@@ -97,7 +94,7 @@ export function LibraryPage() {
       return {
         kind: "loaded",
         recordings: prev.recordings.map((r) =>
-          r.id === id ? { ...r, status: "TRANSCRIBING" as const } : r
+          r.id === id ? { ...r, status: "TRANSCRIBING" as const } : r,
         ),
       };
     });
@@ -151,12 +148,8 @@ export function LibraryPage() {
 
         {state.kind === "error" && (
           <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-6 text-center">
-            <p className="font-medium text-destructive">
-              Failed to load recordings
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {state.message}
-            </p>
+            <p className="font-medium text-destructive">Failed to load recordings</p>
+            <p className="mt-1 text-sm text-muted-foreground">{state.message}</p>
             <Button
               variant="outline"
               size="sm"
@@ -174,8 +167,7 @@ export function LibraryPage() {
           <div className="rounded-lg border border-dashed p-12 text-center">
             <p className="text-muted-foreground">No recordings found.</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Add audio files to your recordings directory and click "Sync
-              Library".
+              Add audio files to your recordings directory and click "Sync Library".
             </p>
           </div>
         )}

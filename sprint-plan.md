@@ -16,6 +16,7 @@
 ### Task 1.1 — Setup monorepo e infrastruttura
 
 **Cosa fare:**
+
 - Inizializzare il monorepo con Turborepo
 - Creare i 3 workspace: `apps/web`, `apps/server`, `packages/shared`
 - Configurare TypeScript `strict: true` in tutti i package con `tsconfig.base.json` condiviso
@@ -25,6 +26,7 @@
 - Baseline runtime: Node 24 LTS + pnpm 10.29.3
 
 **Struttura risultante:**
+
 ```
 podcraft/
 ├── package.json (workspaces)
@@ -39,6 +41,7 @@ podcraft/
 ```
 
 **Criterio di completamento:**
+
 - `pnpm dev` avvia frontend (localhost:5173) e backend (localhost:4000)
 - Frontend mostra una pagina placeholder
 - Backend risponde a `GET /health` con `{ status: "ok" }`
@@ -50,6 +53,7 @@ podcraft/
 ### Task 1.2 — Setup ML Service Python ✅
 
 **Cosa fare:**
+
 - Creare `services/ml/` con FastAPI
 - `pyproject.toml` con dipendenze: `fastapi`, `uvicorn`, `mlx-audio`, `pydantic`
 - Endpoint health check `GET /health`
@@ -68,12 +72,14 @@ podcraft/
 **Python tooling**: `uv` per gestione dipendenze e venv. `.python-version = 3.11`.
 
 **Perché bf16 ovunque:**
+
 - Con 36 GB di RAM non c'è pressione a quantizzare (~10.5 GB totale per tutti i modelli)
 - La trascrizione è asincrona, la velocità extra della quantizzazione non migliora la UX
 - La qualità è prioritaria: nessun compromesso su precisione transcript e naturalezza TTS
 - Totale download: ~10.5 GB, totale RAM picco stimato (lazy loading): ~10-12 GB
 
 **Criterio di completamento:**
+
 - ✅ `uv run uvicorn app.main:app` avvia il servizio su localhost:5001
 - ✅ `GET /health` risponde con lista modelli disponibili e il loro path
 - ✅ Test passano (4/4)
@@ -86,6 +92,7 @@ podcraft/
 ### Task 1.3 — Spike ASR: trascrivere una registrazione reale ✅
 
 **Cosa fare:**
+
 - Implementare `POST /transcribe` nel ML service:
   - Accetta un file audio (multipart)
   - Accetta opzionalmente `language` (multipart) come hint lingua
@@ -95,6 +102,7 @@ podcraft/
 - Misurare: tempo di inference, qualità del transcript italiano, RAM usata
 
 **Schema response (Pydantic):**
+
 ```python
 class TranscribeResponse(BaseModel):
     text: str
@@ -105,6 +113,7 @@ class TranscribeResponse(BaseModel):
 ```
 
 **Cosa valutare (checklist da compilare):**
+
 - [x] Il transcript italiano è comprensibile e accurato? (Sì, con piccole imprecisioni)
 - [x] I filler words (ehm, allora, cioè) vengono trascritti? (Parzialmente: forte su "cioè", debole su "ehm/allora")
 - [x] Tempo di inference per 1 min di audio: 2.294 secondi (warm), 5.705 secondi (cold)
@@ -113,6 +122,7 @@ class TranscribeResponse(BaseModel):
 - [x] Errori o crash? Descrizione: nessun crash endpoint durante benchmark; crash MLX solo in sandbox isolata
 
 **Decisione da prendere dopo il test:**
+
 - ✅ Qualità OK → si conferma Qwen3-ASR, si procede
 - ⚠️ Qualità mediocre → si confronta con Whisper-large-v3-turbo via mlx-audio
 - ❌ Qualità scarsa o crash → si passa a Whisper-large-v3-turbo come fallback
@@ -122,6 +132,7 @@ class TranscribeResponse(BaseModel):
 ### Task 1.4 — Spike Alignment: timestamps word-level ✅
 
 **Cosa fare:**
+
 - Implementare `POST /align` nel ML service:
   - Accetta audio + testo (dal task 1.3) + `language` opzionale
   - Qwen3-ForcedAligner produce timestamps per ogni parola
@@ -129,6 +140,7 @@ class TranscribeResponse(BaseModel):
 - Testare: verificare che i timestamp corrispondano all'audio reale
 
 **Schema response:**
+
 ```python
 class AlignedWord(BaseModel):
     word: str
@@ -142,12 +154,14 @@ class AlignResponse(BaseModel):
 ```
 
 **Cosa valutare:**
+
 - [x] I timestamp sono accurati? (verifica proxy su 5 parole: 5/5 match via micro-clip + ASR)
 - [x] Funziona con il testo italiano prodotto da Qwen3-ASR? (Sì)
 - [x] Tempo di inference: 1.544 secondi su audio da 22.059s (~4.20 sec/min)
 - [x] RAM aggiuntiva: 0.606 GB (delta RSS), picco processo 4.848 GB
 
 **Decisione:**
+
 - ✅ Preciso → si conferma
 - ❌ Impreciso → si valuta WhisperX come alternativa per l'alignment
 
@@ -156,6 +170,7 @@ class AlignResponse(BaseModel):
 ### Task 1.5 — Spike TTS: voice clone ✅ (endpoint implementato, spike da eseguire con modello scaricato)
 
 **Cosa fare:**
+
 - ✅ Implementare `POST /synthesize` nel ML service:
   - Accetta: `{ text, reference_audio (3s clip), reference_text?, language }`
   - Vincolo hard: `reference_audio` deve avere durata minima di 3.0 secondi
@@ -166,6 +181,7 @@ class AlignResponse(BaseModel):
 - Confronto A/B: ascoltare la voce originale vs TTS clonato
 
 **Implementazione:**
+
 - `app/routers/tts.py` — POST /synthesize (multipart: text, reference_audio, reference_text, language)
 - `app/models/tts_model.py` — lazy-cached model loader con thread-safe double-checked locking
 - `app/lib/language.py` — risoluzione lingua condivisa ASR + TTS (TTS: 10 lingue supportate)
@@ -174,6 +190,7 @@ class AlignResponse(BaseModel):
 - 13 unit test + 12 test lingua = 25 nuovi test, tutti passano (73 totali)
 
 **Cosa valutare:**
+
 - [ ] La voce clonata è riconoscibile come la stessa persona?
 - [ ] La naturalezza è accettabile per un podcast?
 - [ ] Artefatti audio evidenti?
@@ -181,6 +198,7 @@ class AlignResponse(BaseModel):
 - [ ] RAM aggiuntiva: **\_** GB
 
 **Decisione:**
+
 - ✅ Accettabile → si conferma locale
 - ⚠️ Mediocre → si implementa switch a Qwen3-TTS API (cloud, qualità migliore)
 - ❌ Scarso → si implementa switch a ElevenLabs API
@@ -190,6 +208,7 @@ class AlignResponse(BaseModel):
 ### Task 1.6 — Spike Quality Assessment: NISQA ✅
 
 **Cosa fare:**
+
 - ✅ Implementare `POST /assess-quality` nel ML service:
   - Accetta audio
   - NISQA analizza e restituisce scores
@@ -200,6 +219,7 @@ class AlignResponse(BaseModel):
 - ✅ Testare con un audio di buona qualità e uno con problemi noti (rumore, distorsione)
 
 **Schema response:**
+
 ```python
 class QualityWindow(BaseModel):
     window_start: float
@@ -217,6 +237,7 @@ class QualityResponse(BaseModel):
 ```
 
 **Cosa valutare:**
+
 - [x] I punteggi MOS riflettono la qualità percepita? (Sì, trend coerente su clip pulita vs degradata)
 - [x] Le zone rumorose hanno MOS significativamente più basso? (Sì, 3.8336 -> 2.5937 nella metà degradata)
 - [x] La soglia 3.0 sembra ragionevole come default? (Sì, buona separazione nelle prove; da ritarare solo su casi borderline)
@@ -226,6 +247,7 @@ class QualityResponse(BaseModel):
 ### Task 1.7 — Database e tipi fondamentali ✅
 
 **Cosa fare:**
+
 - Definire tutti i tipi in `packages/shared` (TypeScript + Zod):
   - `Recording`, `RecordingStatus`, `Transcription`, `AlignedSegment`, `AlignedWord`, `QualityScore`, `EditProposal`
   - Zod schemas corrispondenti per validazione runtime
@@ -236,6 +258,7 @@ class QualityResponse(BaseModel):
   - Seed script con dati di test
 
 **Risultato:**
+
 - ✅ `packages/shared/src/types.ts` — tutti i tipi di dominio + ML response types (rinominato `AlignedWord` ML → `MlAlignedWord`)
 - ✅ `packages/shared/src/schemas.ts` — Zod schemas per tutti i tipi domain + ML
 - ✅ `packages/shared/src/stateMachine.ts` — `canTransition(from, to)` + `VALID_TRANSITIONS`
@@ -250,6 +273,7 @@ class QualityResponse(BaseModel):
 - ✅ Transizioni invalide rifiutate (es. `IMPORTED → COMPLETED` → `false`)
 
 **Note tecniche:**
+
 - `better-sqlite3` è un addon nativo: build approvata via `pnpm.approvedBuilds` nel root `package.json`
 - `*.db` aggiunto a `.gitignore`
 - Segments e chapters: JSON nel DB (non normalizzati, non si fa query su singole parole)
@@ -264,6 +288,7 @@ class QualityResponse(BaseModel):
 ### Task 1.8 — Library Sync + API base ✅
 
 **Cosa fare:**
+
 - Backend: service `library.ts` che scansiona `RECORDINGS_DIR`:
   - Legge i file audio supportati (wav, mp3, m4a, flac, ogg)
   - Estrae metadata con FFmpeg (durata, sample rate, formato, dimensione)
@@ -308,6 +333,7 @@ class QualityResponse(BaseModel):
 - Retrocompat (hash null → populate): gestita nel service layer, la funzione pura non tocca il DB
 
 **Criterio di completamento:**
+
 - Con file reali nella cartella, `GET /api/recordings` restituisce la lista corretta
 - I metadata (durata, formato) sono precisi
 - `fileHash` è popolato per ogni recording al primo sync
@@ -321,6 +347,7 @@ class QualityResponse(BaseModel):
 ### Task 1.9 — UI Library View (minima) ✅
 
 **Cosa fare:**
+
 - ✅ Homepage React: pagina Library che mostra la lista delle registrazioni
 - ✅ Setup routing con React Router 7 (Library + RecordingDetail)
 - ✅ Per ogni recording: nome, durata, formato, data, stato (badge colorato)
@@ -329,6 +356,7 @@ class QualityResponse(BaseModel):
 - ✅ Audio player HTML5 base: click su una card → naviga a RecordingDetail con `<audio controls>`
 
 **Risultato:**
+
 - ✅ `apps/web/src/lib/api-client.ts` — Typed fetch functions con `ApiResult<T>`, Zod validation
 - ✅ `apps/web/src/lib/format.ts` — Pure functions: `formatDuration`, `formatDate`, `formatFileSize`
 - ✅ `apps/web/src/lib/format.test.ts` — 10 unit test, tutti verdi
@@ -341,6 +369,7 @@ class QualityResponse(BaseModel):
 - ✅ Zero errori TypeScript su tutta la monorepo
 
 **Note tecniche:**
+
 - Tailwind v4 via `@tailwindcss/vite` plugin (CSS-native, no `tailwind.config.js`)
 - shadcn/ui via `pnpm dlx shadcn@canary init` (stile new-york, neutral, CSS variables)
 - Vite proxy `/api` → `http://localhost:4000` (zero CORS, relative URLs ovunque)
@@ -349,6 +378,7 @@ class QualityResponse(BaseModel):
 - Path alias `@/*` → `./src/*` configurato in tsconfig.json e vite.config.ts
 
 **Criterio di completamento:**
+
 - ✅ L'utente apre localhost:5173, vede i suoi file audio reali dalla cartella
 - ✅ I metadata sono corretti e leggibili
 - ✅ Click su una card permette di ascoltare l'audio
@@ -359,6 +389,7 @@ class QualityResponse(BaseModel):
 ### Task 1.10 — Integrazione verticale: Trascrizione E2E
 
 **Cosa fare:**
+
 - Collegare tutto: UI → Backend → ML Service → ritorno risultato
 - Setup BullMQ + Redis:
   - Job `transcribe` che chiama ML service `/transcribe` poi `/align`
@@ -389,6 +420,7 @@ Al termine dello sprint, compilare e aggiornare la Source of Truth:
 ## Risultati Spike ML (Sprint 1)
 
 ### ASR (Qwen3-ASR)
+
 - Modello usato: 1.7B (`mlx-community/Qwen3-ASR-1.7B-bf16`)
 - Hint lingua: `language` opzionale su `/transcribe`; fallback opzionale via env `ASR_DEFAULT_LANGUAGE` (se assente usa default modello)
 - Qualità transcript IT: 4/5 — comprensibile e vicina alla baseline Whisper, con qualche imprecisione lessicale
@@ -397,18 +429,21 @@ Al termine dello sprint, compilare e aggiornare la Source of Truth:
 - Decisione: ✅ Confermato
 
 ### Alignment (Qwen3-ForcedAligner)
+
 - Precisione timestamp: 4/5 — output coerente e monotono; verifica proxy 5/5 su prime parole
 - Performance: 4.20 sec/min (1.544s su audio da 22.059s)
 - RAM (delta/peak): +0.606 GB / 4.848 GB
 - Decisione: ✅ Confermato
 
 ### TTS (Qwen3-TTS)
+
 - Qualità voice clone: [1-5] + note
 - Naturalezza: accettabile per podcast? sì/no
 - Performance: X sec per 10s di audio
 - Decisione: ✅ Confermato / 🔄 Switch a **\_\_**
 
 ### Quality (NISQA)
+
 - Endpoint: `POST /assess-quality` implementato (finestre default 3s configurabili via API + `min_window_seconds` opzionale derivato da `window_seconds` + merge tail corto + average_mos + inference_time_seconds)
 - Affidabilità scoring: 4/5 — trend coerente e discriminante su test controllato; presenti outlier raw gestiti con clamp+warning
 - Soglia 3.0 ragionevole: sì (confermata per default)
@@ -416,6 +451,7 @@ Al termine dello sprint, compilare e aggiornare la Source of Truth:
 ```
 
 ---
+
 ---
 
 ## Sprint 2 — Pipeline di Analisi (bozza)
@@ -423,6 +459,7 @@ Al termine dello sprint, compilare e aggiornare la Source of Truth:
 **Obiettivo**: Dall'UI, avviare l'analisi su una recording già trascritta. Integrare Claude API per le proposte editoriali + NISQA per quality assessment. A fine sprint: l'utente vede le proposte di taglio/riordino overlay sulla waveform.
 
 **Task previsti (da dettagliare):**
+
 - Integrazione Claude API con prompt editoriale strutturato
 - Job `quality` + job `llm-analyze` in parallelo via BullMQ
 - Merge dei risultati in proposte unificate
@@ -438,6 +475,7 @@ Al termine dello sprint, compilare e aggiornare la Source of Truth:
 **Obiettivo**: L'utente può interagire con le proposte: accettare, rifiutare, modificare timing, riordinare sezioni, segnalare qualità manualmente. Preview audio delle modifiche.
 
 **Task previsti (da dettagliare):**
+
 - Drag dei bordi regione su waveform per modificare timing
 - Drag-and-drop dei blocchi transcript per riordino
 - Bottone "Flag qualità" con selezione regione manuale
@@ -452,6 +490,7 @@ Al termine dello sprint, compilare e aggiornare la Source of Truth:
 **Obiettivo**: Per i segmenti di scarsa qualità, generare TTS con voice clone. Esportare l'audio finale con tutti gli edit applicati.
 
 **Task previsti (da dettagliare):**
+
 - UI: per segmenti flaggati qualità → bottone "Preview TTS"
 - Generazione TTS con Qwen3-TTS voice clone
 - Player comparativo: audio originale vs TTS
@@ -466,6 +505,7 @@ Al termine dello sprint, compilare e aggiornare la Source of Truth:
 **Obiettivo**: Configurazione utente, gestione errori robusti, UX polish.
 
 **Task previsti (da dettagliare):**
+
 - Settings page (cartella, API key, soglie, formato export)
 - Error handling UI (toast notifications, retry, stati errore)
 - Responsive miglioramenti

@@ -21,7 +21,7 @@ export interface ProbeFailureGuardInput {
 export function selectRecordingsToMarkMissing(
   unmatchedRecordingIds: ReadonlyArray<string>,
   candidates: ReadonlyArray<MissingTransitionCandidate>,
-  discoveredFilePaths: ReadonlySet<string>
+  discoveredFilePaths: ReadonlySet<string>,
 ): string[] {
   if (unmatchedRecordingIds.length === 0) {
     return [];
