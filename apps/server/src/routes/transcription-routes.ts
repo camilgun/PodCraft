@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { transcriptionDetailResponseSchema } from "@podcraft/shared";
 import { db } from "../db/index.js";
 import { recordings, transcriptions } from "../db/schema.js";
@@ -25,6 +25,7 @@ app.get("/api/recordings/:id/transcription", async (c) => {
     .select()
     .from(transcriptions)
     .where(eq(transcriptions.recordingId, id))
+    .orderBy(desc(transcriptions.createdAt), desc(transcriptions.id))
     .limit(1);
 
   if (rows.length === 0) {

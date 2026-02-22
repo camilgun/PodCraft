@@ -35,17 +35,37 @@ export function RecordingDetailPage() {
   const [currentTime, setCurrentTime] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Reset page-local state when route param changes.
+  useEffect(() => {
+    setTranscriptionState({ kind: "idle" });
+    setActionError(null);
+    setCurrentTime(0);
+  }, [id]);
+
   // Initial recording load
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      setState({ kind: "error", message: "Recording ID not provided" });
+      return;
+    }
+
+    setState({ kind: "loading" });
+    let cancelled = false;
+
     void (async () => {
       const result = await getRecording(id);
+      if (cancelled) return;
+
       if (result.ok) {
         setState({ kind: "loaded", recording: result.data });
       } else {
         setState({ kind: "error", message: result.error.message });
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   const currentRecording = state.kind === "loaded" ? state.recording : undefined;
@@ -61,7 +81,13 @@ export function RecordingDetailPage() {
   // Load transcript when recording reaches TRANSCRIBED
   useEffect(() => {
     if (!id || currentRecording?.status !== "TRANSCRIBED") return;
-    if (transcriptionState.kind === "loaded" || transcriptionState.kind === "loading") return;
+    if (
+      transcriptionState.kind === "loaded" ||
+      transcriptionState.kind === "loading" ||
+      transcriptionState.kind === "error" // Previene il retry loop infinito
+    ) {
+      return;
+    }
 
     setTranscriptionState({ kind: "loading" });
     void (async () => {
@@ -187,6 +213,14 @@ export function RecordingDetailPage() {
                 <p className="text-sm text-destructive">
                   Errore nel caricamento della trascrizione: {transcriptionState.message}
                 </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => setTranscriptionState({ kind: "idle" })}
+                >
+                  Riprova a caricare
+                </Button>
               </div>
             )}
 

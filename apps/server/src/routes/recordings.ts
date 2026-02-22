@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import {
   canTransition,
   recordingDetailResponseSchema,
@@ -71,10 +71,7 @@ app.get("/api/recordings/:id", async (c) => {
   return c.json(validated.data);
 });
 
-/**
- * POST /api/recordings/:id/transcribe — start transcription (placeholder).
- * Returns 202 Accepted. Actual job enqueue comes in Task 1.10.
- */
+/** POST /api/recordings/:id/transcribe — start transcription asynchronously. */
 app.post("/api/recordings/:id/transcribe", async (c) => {
   const id = c.req.param("id");
   const rows = await db.select().from(recordings).where(eq(recordings.id, id)).limit(1);
@@ -114,7 +111,60 @@ app.post("/api/recordings/:id/transcribe", async (c) => {
     );
   }
 
-  await transcriptionQueue.add("transcribe", { recordingId: id });
+  // Atomically transition to TRANSCRIBING (optimistic lock on previous status).
+  const updatedRows = await db
+    .update(recordings)
+    .set({ status: nextStatus, updatedAt: new Date().toISOString() })
+    .where(and(eq(recordings.id, id), eq(recordings.status, currentStatus)))
+    .returning({ id: recordings.id });
+
+  if (updatedRows.length === 0) {
+    // Lost the race: return idempotent 202 if another request already started it.
+    const latestRows = await db
+      .select({ status: recordings.status })
+      .from(recordings)
+      .where(eq(recordings.id, id))
+      .limit(1);
+
+    if (latestRows.length === 0) {
+      return c.json({ error: "Recording not found" }, 404);
+    }
+
+    const latestStatus = latestRows[0]!.status as Recording["status"];
+    if (latestStatus === nextStatus) {
+      return c.json({ status: "already_in_progress", recordingId: id }, 202);
+    }
+
+    return c.json(
+      {
+        error: `Cannot start transcription from status "${latestStatus}"`,
+        currentStatus: latestStatus,
+      },
+      409,
+    );
+  }
+
+  try {
+    await transcriptionQueue.add("transcribe", { recordingId: id });
+  } catch (err) {
+    // Queue submission failed: restore previous state to avoid a stuck TRANSCRIBING row.
+    await db
+      .update(recordings)
+      .set({
+        status: currentStatus,
+        errorMessage: row.errorMessage,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(and(eq(recordings.id, id), eq(recordings.status, nextStatus)));
+
+    return c.json(
+      {
+        error: `Failed to enqueue transcription job: ${String(err)}`,
+      },
+      503,
+    );
+  }
+
   return c.json({ status: "accepted", recordingId: id }, 202);
 });
 
