@@ -3,8 +3,14 @@ import {
   recordingDetailResponseSchema,
   librarySyncResponseSchema,
   transcribeStartResponseSchema,
+  transcriptionDetailResponseSchema,
 } from "@podcraft/shared";
-import type { Recording, LibrarySyncResponse, TranscribeStartResponse } from "@podcraft/shared";
+import type {
+  Recording,
+  LibrarySyncResponse,
+  TranscribeStartResponse,
+  Transcription,
+} from "@podcraft/shared";
 
 export type ApiError = {
   kind: "network" | "validation" | "server";
@@ -112,6 +118,18 @@ export async function triggerTranscribe(id: string): Promise<ApiResult<Transcrib
   }
 
   return { ok: true, data: parsed.data };
+}
+
+export async function getTranscription(recordingId: string): Promise<ApiResult<Transcription>> {
+  const result = await apiFetch<unknown>(`/api/recordings/${recordingId}/transcription`);
+  if (!result.ok) return result;
+
+  const parsed = transcriptionDetailResponseSchema.safeParse(result.data);
+  if (!parsed.success) {
+    return { ok: false, error: { kind: "validation", message: parsed.error.message } };
+  }
+  // Cast is safe: same exactOptionalPropertyTypes mismatch as Recording above.
+  return { ok: true, data: parsed.data.transcription as Transcription };
 }
 
 /** Returns the audio stream URL for a recording. Used as the <audio> src. */

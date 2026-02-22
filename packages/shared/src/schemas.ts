@@ -278,3 +278,11 @@ export const analysisResultSchema = z.object({
 });
 
 export type AnalysisResultFromSchema = z.infer<typeof analysisResultSchema>;
+
+export const transcriptionDetailResponseSchema = z.object({
+  transcription: transcriptionSchema,
+});
+
+export type TranscriptionDetailResponseFromSchema = z.infer<
+  typeof transcriptionDetailResponseSchema
+>;

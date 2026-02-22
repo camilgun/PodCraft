@@ -8,6 +8,7 @@ import {
 import type { Recording } from "@podcraft/shared";
 import { db } from "../db/index.js";
 import { recordings } from "../db/schema.js";
+import { transcriptionQueue } from "../jobs/queue.js";
 
 const app = new Hono();
 const TRANSCRIBE_STARTABLE_STATUSES: ReadonlySet<Recording["status"]> = new Set([
@@ -113,7 +114,7 @@ app.post("/api/recordings/:id/transcribe", async (c) => {
     );
   }
 
-  // Placeholder — job enqueue will be added in Task 1.10
+  await transcriptionQueue.add("transcribe", { recordingId: id });
   return c.json({ status: "accepted", recordingId: id }, 202);
 });
 

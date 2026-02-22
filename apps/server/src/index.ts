@@ -3,10 +3,13 @@ import { Hono } from "hono";
 import { healthResponseSchema, type HealthResponse } from "@podcraft/shared";
 // Initialize DB and run pending migrations on startup.
 import "./db/index.js";
+// Initialize BullMQ worker (side-effect: starts consuming jobs from Redis queue).
+import "./jobs/worker.js";
 import { config } from "./config.js";
 import recordingsRoutes from "./routes/recordings.js";
 import libraryRoutes from "./routes/library-routes.js";
 import filesRoutes from "./routes/files.js";
+import transcriptionRoutes from "./routes/transcription-routes.js";
 
 const app = new Hono();
 
@@ -30,6 +33,7 @@ app.get("/health", (context) => {
 app.route("/", recordingsRoutes);
 app.route("/", libraryRoutes);
 app.route("/", filesRoutes);
+app.route("/", transcriptionRoutes);
 
 serve(
   {

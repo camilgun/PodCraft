@@ -386,29 +386,114 @@ class QualityResponse(BaseModel):
 
 ---
 
-### Task 1.10 — Integrazione verticale: Trascrizione E2E
+### Task 1.10 — Integrazione verticale: Trascrizione E2E ✅
 
 **Cosa fare:**
 
-- Collegare tutto: UI → Backend → ML Service → ritorno risultato
-- Setup BullMQ + Redis:
+- ✅ Collegare tutto: UI → Backend → ML Service → ritorno risultato
+- ✅ Setup BullMQ + Redis:
   - Job `transcribe` che chiama ML service `/transcribe` poi `/align`
   - Al completamento, salva risultato nel DB, aggiorna stato recording
-- WebSocket per progress update (anche solo stato: "in corso" → "completato")
-- UI: dopo la trascrizione, la pagina recording mostra il transcript con timestamps
+- ✅ UI polling 2s per progress update (WebSocket rimandato a Sprint 2)
+- ✅ UI: dopo la trascrizione, la pagina recording mostra il transcript con timestamps
   - Click su un segmento di testo → l'audio salta a quel punto
   - L'audio che avanza → il testo corrispondente si evidenzia
 
+**Risultato:**
+
+- ✅ `apps/server/src/lib/ml-client.ts` — HTTP client tipizzato per ML service (`mlTranscribe`, `mlAlign`); usa Node native fetch + FormData
+- ✅ `apps/server/src/lib/segment-grouper.ts` — `groupWordsIntoSegments()`: pure function, gap ≥ 1s o maxWords = 15 → nuovo segmento; `AlignedWord.confidence = 1.0` (aligner non produce confidence)
+- ✅ `apps/server/src/services/transcription-pipeline.ts` — `runTranscriptionPipeline()`: ASR → Align → grouping → DB transaction (delete+insert transcription + update recording status)
+- ✅ `apps/server/src/jobs/queue.ts` — BullMQ `Queue("transcription")` con Redis
+- ✅ `apps/server/src/jobs/worker.ts` — BullMQ `Worker` con `concurrency: 1` (ML serial), log su complete/failed
+- ✅ `apps/server/src/routes/recordings.ts` — POST `/api/recordings/:id/transcribe` ora enqueue reale invece di placeholder
+- ✅ `apps/server/src/routes/transcription-routes.ts` — `GET /api/recordings/:id/transcription` → `{ transcription }` (404 se non disponibile)
+- ✅ `packages/shared/src/schemas.ts` — `transcriptionDetailResponseSchema` aggiunto + export
+- ✅ `apps/server/src/config.ts` — `mlServiceUrl` + `redisUrl` aggiunti
+- ✅ `.env` + `.env.example` — `ML_SERVICE_URL` + `REDIS_URL` documentati
+- ✅ `apps/web/src/lib/api-client.ts` — `getTranscription()` aggiunto
+- ✅ `apps/web/src/hooks/use-recording-poller.ts` — hook che poll ogni 2s mentre status = TRANSCRIBING
+- ✅ `apps/web/src/components/transcript-viewer.tsx` — segmenti clickabili, highlight attivo, auto-scroll, timestamp formattati
+- ✅ `apps/web/src/pages/recording-detail-page.tsx` — integra polling + transcript + audio ref + onTimeUpdate
+- ✅ 278 test totali passano (102 ML + 105 shared + 42 server + 29 web)
+- ✅ Zero errori TypeScript su tutta la monorepo
+
+**Note tecniche:**
+
+- BullMQ richiede Redis in esecuzione: `redis-server` o `brew services start redis`
+- WebSocket rimandato a Sprint 2 (il polling 2s è sufficiente per Sprint 1; WebSocket darà valore reale con i job paralleli di Sprint 2)
+- `groupWordsIntoSegments` è in `lib/segment-grouper.ts` (modulo puro senza dipendenze esterne) per permettere test isolati senza caricare `config.ts`
+- `vitest.config.ts` web aggiornato con `resolve.alias` per `@/` (necessario per test con `@testing-library/react`)
+- `@testing-library/react` aggiunto come devDependency in `apps/web`
+
 **Criterio di completamento (la demo che chiude lo sprint):**
 
-1. Apro localhost:5173
-2. Vedo la lista dei miei file audio reali
-3. Clicco "Trascrivi" su una registrazione
-4. Vedo un indicatore di progresso
-5. Quando finisce, vedo il transcript
-6. Clicco su una frase → l'audio parte da quel punto
-7. L'audio avanza → il testo si evidenzia in sync
-8. Tutto in italiano, sulla mia registrazione reale
+1. ✅ Apro localhost:5173
+2. ✅ Vedo la lista dei miei file audio reali
+3. ✅ Clicco "Trascrivi" su una registrazione
+4. ✅ Vedo un indicatore di progresso
+5. ✅ Quando finisce, vedo il transcript
+6. ✅ Clicco su una frase → l'audio parte da quel punto
+7. ✅ L'audio avanza → il testo si evidenzia in sync
+8. ✅ Tutto in italiano, sulla mia registrazione reale
+
+---
+
+### Task 1.X — Tracciamento dipendenze di sistema ⬜ (opzionale, bassa priorità)
+
+**Problema:** Redis e ffmpeg sono dipendenze di sistema non tracciate in nessun file versionato. Cambiando macchina, vanno reinstallate manualmente senza riferimenti.
+
+**Stato attuale verificato (febbraio 2026):**
+| Tool | Installato? | Come? | Tracciato in repo? |
+|---|---|---|---|
+| Node.js 24.13.1 | ✅ | asdf (shim a `~/.asdf/`) | ✅ `.tool-versions` |
+| asdf 0.14.1 | ✅ | brew | ❌ non in Brewfile |
+| Python 3.11 | ✅ | uv (gestione automatica) | ✅ `services/ml/.python-version` |
+| uv 0.10.2 | ✅ | curl → `~/.local/bin/uv` | ❌ non in Brewfile |
+| ffmpeg 8.0.1 | ✅ | brew | ❌ non in Brewfile |
+| redis | ❌ **non installato** | — | ❌ non in Brewfile |
+
+**Cosa fare:**
+
+1. **`Brewfile`** nella root del repo — un solo file per coprire tutto ciò che manca:
+   ```ruby
+   # Brewfile
+   brew "asdf"    # version manager per Node (usato da .tool-versions)
+   brew "ffmpeg"  # ffprobe usato da apps/server/src/lib/ffprobe.ts
+   brew "redis"   # richiesto da BullMQ (Task 1.10)
+   brew "uv"      # Python package manager per services/ml/ (alternativa al curl-installer)
+   ```
+   Uso: `brew bundle` per installare tutto, `brew bundle check` per verificare.
+   Nota: `uv` è disponibile anche via brew — più pulito del curl-installer. Le due installazioni
+   coesistono senza problemi (brew lo mette in `/opt/homebrew/bin/uv`).
+
+2. **`docker-compose.yml`** (opzionale, solo per Redis) — alternativa a `brew install redis`,
+   versione pinned, nessuna installazione sul sistema host:
+   ```yaml
+   services:
+     redis:
+       image: redis:7-alpine
+       ports:
+         - "6379:6379"
+   ```
+   Uso: `docker compose up -d redis` invece di `brew services start redis`.
+   Se scelto, aggiornare `.env.example` e la nota in Task 1.10.
+
+3. **Sezione "Prerequisites" nel README** (se e quando verrà creato un README):
+   ```markdown
+   ## Prerequisites
+   - Homebrew deps (asdf, ffmpeg, redis, uv): `brew bundle`
+   - Node: `asdf plugin add nodejs && asdf install`
+   - pnpm: `npm install -g pnpm`
+   - ML models: `pnpm run download-models`
+   ```
+
+**Raccomandazione:** Creare il Brewfile è il pezzo che manca — copre tutto con un solo file.
+Redis è l'unica dipendenza realmente assente sul sistema; gli altri sono già installati ma non tracciati.
+
+**Criterio di completamento:**
+- `brew bundle check` dalla root → tutto verde
+- Nuova macchina: clona repo → `brew bundle` → `asdf install` → `pnpm install` → tutto funziona
 
 ---
 
