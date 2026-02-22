@@ -456,6 +456,7 @@ class QualityResponse(BaseModel):
 **Cosa fare:**
 
 1. **`Brewfile`** nella root del repo — un solo file per coprire tutto ciò che manca:
+
    ```ruby
    # Brewfile
    brew "asdf"    # version manager per Node (usato da .tool-versions)
@@ -463,12 +464,14 @@ class QualityResponse(BaseModel):
    brew "redis"   # richiesto da BullMQ (Task 1.10)
    brew "uv"      # Python package manager per services/ml/ (alternativa al curl-installer)
    ```
+
    Uso: `brew bundle` per installare tutto, `brew bundle check` per verificare.
    Nota: `uv` è disponibile anche via brew — più pulito del curl-installer. Le due installazioni
    coesistono senza problemi (brew lo mette in `/opt/homebrew/bin/uv`).
 
 2. **`docker-compose.yml`** (opzionale, solo per Redis) — alternativa a `brew install redis`,
    versione pinned, nessuna installazione sul sistema host:
+
    ```yaml
    services:
      redis:
@@ -476,12 +479,14 @@ class QualityResponse(BaseModel):
        ports:
          - "6379:6379"
    ```
+
    Uso: `docker compose up -d redis` invece di `brew services start redis`.
    Se scelto, aggiornare `.env.example` e la nota in Task 1.10.
 
 3. **Sezione "Prerequisites" nel README** (se e quando verrà creato un README):
    ```markdown
    ## Prerequisites
+
    - Homebrew deps (asdf, ffmpeg, redis, uv): `brew bundle`
    - Node: `asdf plugin add nodejs && asdf install`
    - pnpm: `npm install -g pnpm`
@@ -492,6 +497,7 @@ class QualityResponse(BaseModel):
 Redis è l'unica dipendenza realmente assente sul sistema; gli altri sono già installati ma non tracciati.
 
 **Criterio di completamento:**
+
 - `brew bundle check` dalla root → tutto verde
 - Nuova macchina: clona repo → `brew bundle` → `asdf install` → `pnpm install` → tutto funziona
 

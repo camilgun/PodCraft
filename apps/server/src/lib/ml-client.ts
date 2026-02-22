@@ -1,8 +1,5 @@
 import { readFile } from "node:fs/promises";
-import {
-  transcribeResponseSchema,
-  alignResponseSchema,
-} from "@podcraft/shared";
+import { transcribeResponseSchema, alignResponseSchema } from "@podcraft/shared";
 import type { TranscribeResponse, AlignResponse } from "@podcraft/shared";
 import { config } from "../config.js";
 

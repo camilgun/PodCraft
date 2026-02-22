@@ -47,9 +47,7 @@ export function TranscriptViewer({ segments, currentTime, onSeek }: TranscriptVi
               className={cn(
                 "w-full text-left text-sm rounded px-2 py-1.5 transition-colors cursor-pointer",
                 "hover:bg-accent hover:text-accent-foreground",
-                isActive
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "text-foreground",
+                isActive ? "bg-primary/10 text-primary font-medium" : "text-foreground",
               )}
             >
               <span className="text-xs text-muted-foreground mr-2 font-mono shrink-0">

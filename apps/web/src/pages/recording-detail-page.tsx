@@ -1,12 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router";
 import { canStartTranscription, type Recording, type Transcription } from "@podcraft/shared";
-import {
-  getRecording,
-  getAudioUrl,
-  triggerTranscribe,
-  getTranscription,
-} from "@/lib/api-client";
+import { getRecording, getAudioUrl, triggerTranscribe, getTranscription } from "@/lib/api-client";
 import { StatusBadge } from "@/components/status-badge";
 import { TranscriptViewer } from "@/components/transcript-viewer";
 import { Button } from "@/components/ui/button";
@@ -127,8 +122,7 @@ export function RecordingDetailPage() {
   }
 
   const canTranscribe = state.kind === "loaded" && canStartTranscription(state.recording.status);
-  const isTranscribing =
-    state.kind === "loaded" && state.recording.status === "TRANSCRIBING";
+  const isTranscribing = state.kind === "loaded" && state.recording.status === "TRANSCRIBING";
 
   return (
     <div className="min-h-screen bg-background">
@@ -287,9 +281,7 @@ export function RecordingDetailPage() {
             {state.recording.status === "ERROR" && state.recording.errorMessage != null && (
               <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4">
                 <p className="text-sm font-medium text-destructive">Errore</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {state.recording.errorMessage}
-                </p>
+                <p className="mt-1 text-sm text-muted-foreground">{state.recording.errorMessage}</p>
               </div>
             )}
           </div>

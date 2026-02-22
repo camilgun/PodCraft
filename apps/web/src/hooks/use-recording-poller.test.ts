@@ -129,9 +129,7 @@ describe("useRecordingPoller", () => {
     mockGetRecording.mockResolvedValue({ ok: true, data: makeRecording("TRANSCRIBING") });
     const onUpdate = vi.fn();
 
-    const { unmount } = renderHook(() =>
-      useRecordingPoller("rec-1", "TRANSCRIBING", onUpdate),
-    );
+    const { unmount } = renderHook(() => useRecordingPoller("rec-1", "TRANSCRIBING", onUpdate));
 
     unmount();
 

@@ -36,15 +36,16 @@ export async function runTranscriptionPipeline(recordingId: string): Promise<voi
 
   try {
     // 1. Fetch recording
-    const rows = await db
-      .select()
-      .from(recordings)
-      .where(eq(recordings.id, recordingId))
-      .limit(1);
+    const rows = await db.select().from(recordings).where(eq(recordings.id, recordingId)).limit(1);
 
     if (rows.length === 0) {
       console.error(
-        JSON.stringify({ recordingId, step: "fetch", status: "error", error: "Recording not found" }),
+        JSON.stringify({
+          recordingId,
+          step: "fetch",
+          status: "error",
+          error: "Recording not found",
+        }),
       );
       return;
     }

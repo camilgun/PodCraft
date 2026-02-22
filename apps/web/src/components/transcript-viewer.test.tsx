@@ -9,12 +9,7 @@ beforeAll(() => {
   window.HTMLElement.prototype.scrollIntoView = vi.fn();
 });
 
-function makeSegment(
-  id: string,
-  text: string,
-  startTime: number,
-  endTime: number,
-): AlignedSegment {
+function makeSegment(id: string, text: string, startTime: number, endTime: number): AlignedSegment {
   return {
     id,
     text,

@@ -19,18 +19,20 @@ const { processorRef, handlers, mockPipeline, initArgs } = vi.hoisted(() => {
 });
 
 vi.mock("bullmq", () => ({
-  Worker: vi.fn().mockImplementation(
-    (name: string, processor: (job: unknown) => Promise<void>, opts: Record<string, unknown>) => {
-      processorRef.current = processor;
-      initArgs.name = name;
-      initArgs.opts = opts;
-      return {
-        on: vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
-          handlers[event] = handler;
-        }),
-      };
-    },
-  ),
+  Worker: vi
+    .fn()
+    .mockImplementation(
+      (name: string, processor: (job: unknown) => Promise<void>, opts: Record<string, unknown>) => {
+        processorRef.current = processor;
+        initArgs.name = name;
+        initArgs.opts = opts;
+        return {
+          on: vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
+            handlers[event] = handler;
+          }),
+        };
+      },
+    ),
 }));
 
 vi.mock("../config.js", () => ({
@@ -124,10 +126,7 @@ describe("transcriptionWorker", () => {
 
     it("handles undefined job (BullMQ passes undefined on unrecoverable queue errors)", () => {
       const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-      const handler = handlers["failed"] as (
-        job: MockJob | undefined,
-        err: Error,
-      ) => void;
+      const handler = handlers["failed"] as (job: MockJob | undefined, err: Error) => void;
       handler(undefined, new Error("queue error"));
 
       const output = errSpy.mock.calls[0]![0] as string;
