@@ -114,6 +114,15 @@ export function RecordingDetailPage() {
     setActionError(`Unable to start transcription: ${result.error.message}`);
   }
 
+  function handleRetranscribeClick() {
+    const confirmed = window.confirm(
+      "Esiste già una trascrizione per questa registrazione. Vuoi rilanciarla?",
+    );
+    if (confirmed) {
+      void handleTranscribeClick();
+    }
+  }
+
   function handleSeek(time: number) {
     const audio = audioRef.current;
     if (!audio) return;
@@ -122,6 +131,8 @@ export function RecordingDetailPage() {
   }
 
   const canTranscribe = state.kind === "loaded" && canStartTranscription(state.recording.status);
+  const canRetranscribe =
+    state.kind === "loaded" && state.recording.status === "TRANSCRIBED";
   const isTranscribing = state.kind === "loaded" && state.recording.status === "TRANSCRIBING";
 
   return (
@@ -219,20 +230,27 @@ export function RecordingDetailPage() {
             )}
 
             {/* Actions */}
-            {canTranscribe && (
+            {(canTranscribe || canRetranscribe) && (
               <div>
                 {actionError != null && (
                   <div className="mb-3 rounded-lg border border-destructive/20 bg-destructive/5 p-3">
                     <p className="text-sm font-medium text-destructive">{actionError}</p>
                   </div>
                 )}
-                <Button
-                  onClick={() => {
-                    void handleTranscribeClick();
-                  }}
-                >
-                  Trascrivi
-                </Button>
+                {canTranscribe && (
+                  <Button
+                    onClick={() => {
+                      void handleTranscribeClick();
+                    }}
+                  >
+                    Trascrivi
+                  </Button>
+                )}
+                {canRetranscribe && (
+                  <Button variant="outline" onClick={handleRetranscribeClick}>
+                    Ritrascrivi
+                  </Button>
+                )}
               </div>
             )}
 
