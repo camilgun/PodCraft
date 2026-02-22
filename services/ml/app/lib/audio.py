@@ -121,3 +121,75 @@ def normalize_audio_for_tts_reference(input_path: Path, output_path: Path) -> No
 
     if not output_path.exists():
         raise AudioInfrastructureError("ffmpeg did not produce normalized reference audio")
+
+
+class AudioChunk:
+    """Metadata for a single audio chunk produced by split_audio_into_chunks."""
+
+    __slots__ = ("path", "start_offset", "duration")
+
+    def __init__(self, path: Path, start_offset: float, duration: float) -> None:
+        self.path = path
+        self.start_offset = start_offset
+        self.duration = duration
+
+
+def split_audio_into_chunks(
+    audio_path: Path,
+    output_dir: Path,
+    total_duration: float,
+    chunk_seconds: float = 240.0,
+) -> list[AudioChunk]:
+    """Split an audio file into fixed-length WAV chunks using ffmpeg.
+
+    Returns a list of AudioChunk with the file path, start offset, and actual
+    duration of each chunk.  If the file is shorter than *chunk_seconds* a
+    single chunk spanning the whole file is returned (as a copy, so callers
+    always receive files inside *output_dir*).
+    """
+    chunks: list[AudioChunk] = []
+    offset = 0.0
+    index = 0
+
+    while offset < total_duration:
+        remaining = total_duration - offset
+        seg_duration = min(chunk_seconds, remaining)
+        out_path = output_dir / f"chunk_{index:04d}.wav"
+
+        result = _run_command(
+            [
+                "ffmpeg",
+                "-y",
+                "-loglevel",
+                "error",
+                "-ss",
+                str(offset),
+                "-t",
+                str(seg_duration),
+                "-i",
+                str(audio_path),
+                "-ac",
+                "1",
+                "-ar",
+                "16000",
+                str(out_path),
+            ]
+        )
+
+        if result.returncode != 0:
+            stderr = result.stderr.strip() or "ffmpeg chunk split failed"
+            raise AudioInfrastructureError(stderr)
+
+        if not out_path.exists():
+            raise AudioInfrastructureError(
+                f"ffmpeg did not produce chunk at {out_path}"
+            )
+
+        # Probe actual chunk duration (may differ slightly from requested)
+        actual_duration = probe_audio_duration_seconds(out_path)
+        chunks.append(AudioChunk(out_path, offset, actual_duration))
+
+        offset += seg_duration
+        index += 1
+
+    return chunks

@@ -1,4 +1,9 @@
-"""Forced alignment routes."""
+"""Forced alignment routes.
+
+Long audio (> ALIGN_MAX_CHUNK_SECONDS, default 240 s) is automatically split
+into shorter chunks, each aligned independently, then merged with time offsets.
+This works around the Qwen3-ForcedAligner-0.6B limitation of ≤ 5 min per pass.
+"""
 
 from __future__ import annotations
 
@@ -15,10 +20,12 @@ from starlette.concurrency import run_in_threadpool
 
 from app.config import get_settings
 from app.lib.audio import (
+    AudioChunk,
     AudioInfrastructureError,
     AudioInputError,
     normalize_audio_for_asr,
     probe_audio_duration_seconds,
+    split_audio_into_chunks,
 )
 from app.lib.language import is_supported_asr_language_hint, resolve_asr_prompt_language
 from app.lib.memory import MemorySampler
@@ -31,6 +38,10 @@ READ_CHUNK_SIZE = 1024 * 1024
 ALIGN_MAX_CONCURRENT_INFERENCES = 1
 MEMORY_SAMPLE_INTERVAL_SECONDS = 0.5
 ALIGN_INFERENCE_SEMAPHORE = asyncio.Semaphore(ALIGN_MAX_CONCURRENT_INFERENCES)
+
+# Qwen3-ForcedAligner-0.6B supports ≤ 5 min.  Use 4 min as the default
+# chunk size to leave a safety margin.
+ALIGN_MAX_CHUNK_SECONDS = 240.0
 
 
 def _log_align_status(
@@ -46,6 +57,7 @@ def _log_align_status(
     prompt_language: str | None = None,
     peak_memory_gb: float | None = None,
     delta_memory_gb: float | None = None,
+    chunk_count: int | None = None,
 ) -> None:
     payload = {
         "jobId": None,
@@ -62,6 +74,7 @@ def _log_align_status(
         "prompt_language": prompt_language,
         "peak_memory_gb": peak_memory_gb,
         "delta_memory_gb": delta_memory_gb,
+        "chunk_count": chunk_count,
     }
     logger.info(json.dumps(payload))
 
@@ -93,8 +106,12 @@ def _generate_alignment(
     return generate(str(audio_path), text=text, language=prompt_language)
 
 
-def _map_aligned_words(output: object) -> list[AlignedWord]:
-    """Map model output to API response words."""
+def _map_aligned_words(
+    output: object,
+    *,
+    time_offset: float = 0.0,
+) -> list[AlignedWord]:
+    """Map model output to API response words, adding *time_offset* to every timestamp."""
     raw_items = getattr(output, "items", None)
     if not isinstance(raw_items, list):
         raise RuntimeError("Aligner output does not contain an items list")
@@ -115,12 +132,69 @@ def _map_aligned_words(output: object) -> list[AlignedWord]:
         words.append(
             AlignedWord(
                 word=word,
-                start_time=float(start_time),
-                end_time=float(end_time),
+                start_time=round(float(start_time) + time_offset, 4),
+                end_time=round(float(end_time) + time_offset, 4),
             )
         )
 
     return words
+
+
+# ── Chunked alignment helpers ─────────────────────────────────────────────
+
+
+def _split_text_for_chunks(
+    text: str,
+    chunks: list[AudioChunk],
+    total_duration: float,
+) -> list[str]:
+    """Split *text* into per-chunk substrings proportional to chunk duration.
+
+    Words are allocated proportionally to each chunk's share of the total audio
+    duration.  This is a rough heuristic — slight misalignment at chunk
+    boundaries is acceptable because forced-alignment within each chunk will
+    snap words to the correct audio position.
+    """
+    words = text.split()
+    n_words = len(words)
+    if n_words == 0:
+        return [""] * len(chunks)
+
+    result: list[str] = []
+    word_index = 0
+
+    for i, chunk in enumerate(chunks):
+        if i == len(chunks) - 1:
+            # Last chunk gets all remaining words
+            chunk_words = words[word_index:]
+        else:
+            share = chunk.duration / total_duration if total_duration > 0 else 1.0 / len(chunks)
+            n = max(1, round(n_words * share))
+            chunk_words = words[word_index : word_index + n]
+            word_index += n
+
+        result.append(" ".join(chunk_words))
+
+    return result
+
+
+def _align_single_chunk(
+    model: object,
+    chunk: AudioChunk,
+    chunk_text: str,
+    prompt_language: str,
+) -> list[AlignedWord]:
+    """Align a single audio chunk and return words with offset-adjusted timestamps."""
+    if not chunk_text.strip():
+        return []
+
+    output = _generate_alignment(
+        model,
+        chunk.path,
+        text=chunk_text,
+        prompt_language=prompt_language,
+    )
+    return _map_aligned_words(output, time_offset=chunk.start_offset)
 
 
 router = APIRouter(tags=["align"])
@@ -145,6 +219,7 @@ async def align_audio(
     peak_memory_gb: float | None = None
     delta_memory_gb: float | None = None
     word_count: int | None = None
+    chunk_count: int | None = None
     requested_language = language
     prompt_language: str | None = None
 
@@ -195,23 +270,77 @@ async def align_audio(
         await run_in_threadpool(normalize_audio_for_asr, upload_path, normalized_path)
         model = await run_in_threadpool(get_aligner_model, settings)
 
+        needs_chunking = audio_duration_seconds > ALIGN_MAX_CHUNK_SECONDS
+
         async with ALIGN_INFERENCE_SEMAPHORE:
             inference_started = time.perf_counter()
             async with MemorySampler(
                 sample_interval_seconds=MEMORY_SAMPLE_INTERVAL_SECONDS
             ) as memory_sampler:
-                output = await run_in_threadpool(
-                    _generate_alignment,
-                    model,
-                    normalized_path,
-                    text=transcript,
-                    prompt_language=prompt_language,
-                )
+                if needs_chunking:
+                    # ── Chunked alignment for long audio ──────────────
+                    chunks_dir = temp_dir_path / "chunks"
+                    chunks_dir.mkdir()
+                    audio_chunks = await run_in_threadpool(
+                        split_audio_into_chunks,
+                        normalized_path,
+                        chunks_dir,
+                        audio_duration_seconds,
+                        ALIGN_MAX_CHUNK_SECONDS,
+                    )
+                    chunk_count = len(audio_chunks)
+                    chunk_texts = _split_text_for_chunks(
+                        transcript, audio_chunks, audio_duration_seconds,
+                    )
+
+                    logger.info(
+                        json.dumps({
+                            "step": "align_chunked",
+                            "chunk_count": chunk_count,
+                            "audio_duration": audio_duration_seconds,
+                            "chunk_seconds": ALIGN_MAX_CHUNK_SECONDS,
+                        })
+                    )
+
+                    all_words: list[AlignedWord] = []
+                    for i, (chunk, chunk_text) in enumerate(
+                        zip(audio_chunks, chunk_texts, strict=True)
+                    ):
+                        logger.info(
+                            json.dumps({
+                                "step": "align_chunk",
+                                "chunk_index": i,
+                                "chunk_offset": chunk.start_offset,
+                                "chunk_duration": chunk.duration,
+                                "chunk_word_count": len(chunk_text.split()),
+                            })
+                        )
+                        chunk_words = await run_in_threadpool(
+                            _align_single_chunk,
+                            model,
+                            chunk,
+                            chunk_text,
+                            prompt_language,
+                        )
+                        all_words.extend(chunk_words)
+
+                    words = all_words
+                else:
+                    # ── Single-pass alignment for short audio ─────────
+                    chunk_count = 1
+                    output = await run_in_threadpool(
+                        _generate_alignment,
+                        model,
+                        normalized_path,
+                        text=transcript,
+                        prompt_language=prompt_language,
+                    )
+                    words = _map_aligned_words(output)
+
             inference_time_seconds = time.perf_counter() - inference_started
             peak_memory_gb = memory_sampler.peak_memory_gb
             delta_memory_gb = memory_sampler.delta_memory_gb
 
-        words = _map_aligned_words(output)
         word_count = len(words)
 
         response = AlignResponse(
@@ -231,6 +360,7 @@ async def align_audio(
             prompt_language=prompt_language,
             peak_memory_gb=peak_memory_gb,
             delta_memory_gb=delta_memory_gb,
+            chunk_count=chunk_count,
         )
         return response
     except AudioInputError as exc:
