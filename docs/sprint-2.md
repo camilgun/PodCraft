@@ -6,27 +6,19 @@
 
 **Stato finale**: Recording in stato REVIEWED, waveform interattiva con regioni colorate, panel proposte accept/reject.
 
-**Branch naming**: `task/2.X-slug-breve` (es. `task/2.1-websocket`, `task/2.3-llm-job`)
+**Branch naming**: `task/2.X-slug-breve` (es. `task/2.1a-ws-backend`, `task/2.1b-ws-frontend`, `task/2.3-llm-job`)
 
 ---
 
-## Task 2.1 — WebSocket real-time progress
+## Task 2.1A — WebSocket foundation (shared + backend)
 
-**Obiettivo**: Sostituire il polling 2s con WebSocket per aggiornamenti in real-time. I job delle task successive (2.2, 2.3) useranno questa infrastruttura per notificare il progresso.
+**Obiettivo**: Preparare l'infrastruttura WebSocket lato shared/backend, così i job delle task successive (2.2, 2.3) possono broadcastare progresso real-time.
 
 **Prerequisiti**: nessuno (task indipendente).
 
 **Cosa fare:**
 
-### Backend
-
 - Aggiungere `@hono/node-ws` come dipendenza di `apps/server`
-- `apps/server/src/services/ws.ts` — singleton `WsManager`:
-  - `connect(recordingId: string, ws: WSContext): void`
-  - `disconnect(recordingId: string, ws: WSContext): void`
-  - `broadcast(recordingId: string, event: WsProgressEvent): void` — invia a tutti i client connessi per quel recording
-  - Internamente: `Map<string, Set<WSContext>>` (recordingId → set di client)
-- Route `GET /api/recordings/:id/ws` — WebSocket upgrade (in `apps/server/src/routes/ws-routes.ts`)
 - `packages/shared/src/types.ts` — aggiungere tipi WS (export da `index.ts`):
 
 ```typescript
@@ -44,12 +36,44 @@ interface WsProgressEvent {
 ```
 
 - Aggiungere `WsProgressEventSchema` in `packages/shared/src/schemas.ts`
+- `apps/server/src/services/ws.ts` — singleton `WsManager`:
+  - `connect(recordingId: string, ws: WSContext): void`
+  - `disconnect(recordingId: string, ws: WSContext): void`
+  - `broadcast(recordingId: string, event: WsProgressEvent): void` — invia a tutti i client connessi per quel recording
+  - Internamente: `Map<string, Set<WSContext>>` (recordingId → set di client)
+- Route `GET /api/recordings/:id/ws` — WebSocket upgrade (in `apps/server/src/routes/ws-routes.ts`)
+- `apps/server/src/index.ts` — monta ws-routes + injectWebSocket
 - `apps/server/src/jobs/worker.ts` — aggiornare per emettere eventi WS al cambio di stato del job transcription:
   - Job active → `broadcast(recordingId, { type: 'progress', step: 'transcribing', percent: 0 })`
   - Job completed → `broadcast(recordingId, { type: 'state_change', newState: 'TRANSCRIBED' })`
   - Job failed → `broadcast(recordingId, { type: 'failed', error: message })`
 
-### Frontend
+**File da creare/modificare:**
+
+```
+apps/server/src/services/ws.ts                    (nuovo)
+apps/server/src/routes/ws-routes.ts               (nuovo)
+packages/shared/src/types.ts                      (modifica: aggiunge WsProgressEvent)
+packages/shared/src/schemas.ts                    (modifica: aggiunge WsProgressEventSchema)
+apps/server/src/index.ts                          (modifica: monta ws-routes + injectWebSocket)
+apps/server/src/jobs/worker.ts                    (modifica: emette eventi WS)
+```
+
+**Criterio di completamento:**
+
+- `WsManager` unit test (`ws.test.ts`): connect/disconnect/broadcast/isolamento per recordingId (5+ test)
+- WebSocket si connette e riceve eventi quando si avvia una trascrizione (test manuale con client WS)
+- Zero errori TypeScript
+
+---
+
+## Task 2.1B — WebSocket hook + integrazione pagina recording
+
+**Obiettivo**: Usare l'infrastruttura WS in frontend per aggiornare la UI in real-time e tenere il polling come fallback.
+
+**Prerequisiti**: Task 2.1A.
+
+**Cosa fare:**
 
 - `apps/web/src/hooks/use-recording-ws.ts` — hook che apre WS:
   - Connette a `ws://localhost:4000/api/recordings/:id/ws` (adatta se HTTP diverso)
@@ -64,20 +88,12 @@ interface WsProgressEvent {
 **File da creare/modificare:**
 
 ```
-apps/server/src/services/ws.ts                    (nuovo)
-apps/server/src/routes/ws-routes.ts               (nuovo)
 apps/web/src/hooks/use-recording-ws.ts            (nuovo)
-packages/shared/src/types.ts                      (modifica: aggiunge WsProgressEvent)
-packages/shared/src/schemas.ts                    (modifica: aggiunge WsProgressEventSchema)
-apps/server/src/index.ts                          (modifica: monta ws-routes + injectWebSocket)
-apps/server/src/jobs/worker.ts                    (modifica: emette eventi WS)
 apps/web/src/pages/recording-detail-page.tsx      (modifica: usa useRecordingWs)
 ```
 
 **Criterio di completamento:**
 
-- `WsManager` unit test (`ws.test.ts`): connect/disconnect/broadcast/isolamento per recordingId (5+ test)
-- WebSocket si connette e riceve eventi quando si avvia una trascrizione
 - Quando la trascrizione finisce, il frontend aggiorna senza polling
 - `use-recording-ws.test.ts`: test con WebSocket mockato (connessione/disconnessione/messaggi)
 - Zero errori TypeScript
@@ -88,7 +104,7 @@ apps/web/src/pages/recording-detail-page.tsx      (modifica: usa useRecordingWs)
 
 **Obiettivo**: Job BullMQ che chiama NISQA via ML Service, salva i quality scores nel DB, e notifica il progresso via WebSocket.
 
-**Prerequisiti**: Task 2.1 (WsManager disponibile per broadcast). Può essere implementato senza WS (omettendo i broadcast) ma il WS è preferibile.
+**Prerequisiti**: Task 2.1A (WsManager disponibile per broadcast). Può essere implementato senza WS (omettendo i broadcast) ma il WS è preferibile.
 
 **Cosa fare:**
 
@@ -165,7 +181,7 @@ apps/server/src/jobs/worker.ts                    (modifica: registra quality pr
 
 **Obiettivo**: Job BullMQ che invia il transcript a Claude Sonnet 4.6, valida l'output strutturato con Zod, e salva `AnalysisResult` + `EditProposal[]` nel DB.
 
-**Prerequisiti**: Task 2.1 (WsManager). Può essere implementato senza WS.
+**Prerequisiti**: Task 2.1A (WsManager). Può essere implementato senza WS.
 
 **Cosa fare:**
 
@@ -457,7 +473,7 @@ apps/web/src/pages/recording-detail-page.tsx           (modifica: sostituisce <a
 
 **Obiettivo**: UI per avviare l'analisi, monitorare il progresso via WebSocket, e gestire il flusso da TRANSCRIBED → ANALYZING → REVIEWED. Introduzione di Zustand per lo stato dell'analisi.
 
-**Prerequisiti**: Task 2.4 (routes), Task 2.5 (waveform player). Task 2.1 (WS) preferibile.
+**Prerequisiti**: Task 2.4 (routes), Task 2.5 (waveform player). Task 2.1B (WS hook frontend) preferibile.
 
 **Cosa fare:**
 
@@ -500,7 +516,7 @@ interface AnalysisState {
   - Renderizzare layout a 3 pannelli: `[Waveform full-width top]` + `[Transcript | ProposalsPanel bottom]`
   - Il ProposalsPanel viene implementato nella prossima task (2.7): placeholder per ora
 
-- Se `useRecordingWs` non ancora implementato (Task 2.1 non completato): implementarlo qui con un approccio semplificato (no reconnect) e aggiornare in seguito.
+- Se `useRecordingWs` non ancora implementato (Task 2.1B non completato): implementarlo qui con un approccio semplificato (no reconnect) e aggiornare in seguito.
 
 **File da creare/modificare:**
 
@@ -508,7 +524,7 @@ interface AnalysisState {
 apps/web/src/stores/analysis-store.ts                  (nuovo)
 apps/web/src/lib/api-client.ts                         (modifica: nuove funzioni)
 apps/web/src/pages/recording-detail-page.tsx           (modifica: gestione stati analysis)
-apps/web/src/hooks/use-recording-ws.ts                 (nuovo se non già in Task 2.1)
+apps/web/src/hooks/use-recording-ws.ts                 (nuovo se non già in Task 2.1B)
 ```
 
 **Test da scrivere:**
