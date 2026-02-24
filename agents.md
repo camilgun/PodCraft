@@ -8,10 +8,24 @@ PodCraft è un tool web locale per content creator che trasforma registrazioni a
 grezze in contenuti podcast/YouTube. L'AI trascrive, analizza qualità, propone tagli,
 e può rigenerare sezioni scarsa qualità con TTS voice clone.
 
+## Documentazione di riferimento
+
+| File | Contenuto |
+|------|-----------|
+| `agents.md` | **Questo file** — regole, convenzioni, entry point |
+| `docs/architecture.md` | Source of truth: architettura, data structures, UI, pipeline |
+| `docs/sprint-plan.md` | Overview di tutti gli sprint (bozze) |
+| `docs/sprint-2.md` | **Sprint corrente** — task dettagliati da implementare |
+| `docs/sprint-1.md` | Sprint 1 completato (archivio) |
+| `docs/backlog.md` | Feature opzionali e idee fuori sprint |
+
+Prima di iniziare un task: leggi `agents.md` (questo file) + `docs/sprint-2.md` (task corrente).
+Per contesto architetturale: `docs/architecture.md`.
+
 ## Architettura
 
 - **Monorepo Turborepo** con pnpm workspaces
-- `apps/web` — Vite, React 19, TypeScript, Tailwind, shadcn/ui, React Router 7, Wavesurfer.js
+- `apps/web` — Vite, React 19, TypeScript, Tailwind, shadcn/ui, React Router 7, Wavesurfer.js, Zustand
 - `apps/server` — Node.js, Hono, BullMQ + Redis, Drizzle ORM + SQLite
 - `packages/shared` — Tipi TypeScript + Zod schemas condivisi
 - `services/ml` — Python 3.11 (uv), FastAPI, mlx-audio (Qwen3-ASR, Qwen3-TTS, Qwen3-ForcedAligner, NISQA). Tutti modelli bf16.
@@ -35,18 +49,28 @@ e può rigenerare sezioni scarsa qualità con TTS voice clone.
 
 ```
 podcraft/
+├── agents.md              # Questo file (entry point)
+├── docs/                  # Documentazione
+│   ├── architecture.md    # Source of truth
+│   ├── sprint-2.md        # Sprint corrente (LEGGI QUESTO)
+│   ├── sprint-plan.md     # Overview sprint
+│   ├── sprint-1.md        # Sprint 1 archivio
+│   └── backlog.md         # Idee opzionali
 ├── apps/web/src/          # Frontend Vite + React (SPA)
 │   ├── pages/             # Route pages
 │   ├── components/        # React components
+│   │   ├── waveform/      # Wavesurfer.js player + regioni
+│   │   ├── proposals/     # Panel proposte accept/reject
+│   │   └── ui/            # shadcn/ui components
 │   ├── hooks/             # Custom hooks
 │   ├── stores/            # Zustand stores
 │   └── lib/               # Utilities, API client
 ├── apps/server/src/       # Backend Hono
 │   ├── routes/            # API route handlers
-│   ├── services/          # Business logic
+│   ├── services/          # Business logic (library, transcription, analysis, llm, ws)
 │   ├── jobs/              # BullMQ job processors
 │   ├── db/                # Drizzle schema + migrations
-│   └── lib/               # Errors, logger, utils
+│   └── lib/               # Pure functions: ml-client, segment-grouper, analysis-merge, file-hash, ffprobe
 ├── packages/shared/src/   # Shared types & schemas
 │   ├── types.ts
 │   ├── schemas.ts
@@ -77,6 +101,17 @@ Library Sync usa l'hash per riconciliare quando l'utente rinomina o sposta il fi
 → hash trovato in nuovo path → aggiorna filePath, stato resta invariato
 → hash non trovato da nessuna parte → transita a FILE_MISSING
 
+## Moduli puri (lib/)
+
+I moduli in `apps/server/src/lib/` sono puri (no dipendenze esterne, no config.ts):
+- `segment-grouper.ts` — words → segments
+- `analysis-merge.ts` — quality scores + proposals → merge (Sprint 2)
+- `library-reconciliation.ts` — file list → DB reconciliation
+- `file-hash.ts` — SHA-256 fingerprint
+- `ffprobe.ts` — audio metadata extraction
+
+Questi moduli hanno i loro test isolati e non importano `config.ts`.
+
 ## Convenzioni Frontend (apps/web)
 
 ### Componenti UI
@@ -91,12 +126,19 @@ Library Sync usa l'hash per riconciliare quando l'utente rinomina o sposta il fi
 - Le URL sono relative (`/api/...`) — il proxy Vite le inoltra a `http://localhost:4000`.
 - Se aggiungi una nuova API, aggiungi prima lo schema Zod in `packages/shared` e poi la funzione in `api-client.ts`.
 
+### State management
+
+- **Zustand** per lo stato UI complesso (analisi, proposte, selezioni waveform).
+- Store files in `src/stores/` con naming `*-store.ts`.
+- Hook React locali per stato componente semplice.
+
 ### TypeScript strict — pattern ricorrenti
 
 - **`import type`** obbligatorio per tutti gli import solo-tipo (`verbatimModuleSyntax: true`).
 - **Floating promises negli event handler**: usa `void asyncFn()` oppure wrappa in una arrow sync: `onClick={() => { void handleClick(); }}`.
 - **`useParams` in React Router 7**: ritorna `string | undefined` — guarda sempre con `if (!id) return` prima di usarlo.
 - **Zod `.nullish()` + `exactOptionalPropertyTypes`**: Zod inferisce `T | null | undefined` ma i tipi di dominio usano `?: T | null`. Dopo `safeParse`, fai `as DomainType` — Zod ha già validato la struttura, è solo un disallineamento del type system.
+- **Wavesurfer.js in test**: jsdom non supporta canvas — mockare completamente con `vi.mock('wavesurfer.js', ...)`.
 
 ## Git Workflow
 
@@ -107,14 +149,12 @@ Ogni task del sprint ha il suo branch dedicato. Non lavorare mai direttamente su
 ```bash
 git checkout main
 git checkout -b task/X.Y-slug-breve
-# es: task/1.10-transcription-ui
-#     task/2.1-bullmq-jobs
-#     task/2.3-fix-alignment-endpoint
+# es: task/2.1-websocket
+#     task/2.3-llm-job
+#     task/2.5-wavesurfer-player
 ```
 
 ### Review
-
-fai la review sul branch:
 
 ```bash
 git diff main...HEAD          # tutto il diff accumulato rispetto a main
@@ -153,4 +193,5 @@ git push origin main
 - Se non sai se validare → SÌ, valida sempre con Zod/Pydantic
 - Se non sai se testare → SÌ, testa sempre
 - Se ti serve un componente UI → cerca prima in shadcn/ui
+- Se non sai in quale sprint sei → `docs/sprint-plan.md` (overview) o `docs/sprint-2.md` (corrente)
 - Non fare scelte architetturali non presenti in questo documento senza chiedere

@@ -114,7 +114,7 @@ Totale picco: ~12.5 GB. I modelli vengono caricati on-demand (lazy loading). Tut
 
 | Servizio              | Task                                                 | Motivazione                                                     |
 | --------------------- | ---------------------------------------------------- | --------------------------------------------------------------- |
-| Claude Sonnet 4.5 API | Analisi editoriale, proposta tagli, riorganizzazione | Richiede reasoning complesso che nessun modello locale eguaglia |
+| Claude Sonnet 4.6 API | Analisi editoriale, proposta tagli, riorganizzazione | Richiede reasoning complesso che nessun modello locale eguaglia |
 
 ### Tradeoff noti da monitorare
 
@@ -321,8 +321,24 @@ interface Chapter {
 }
 ```
 
-**Nota di ownership**: `EditProposal` è sempre figlia di `AnalysisResult` (FK obbligatoria `analysisResultId`).  
+**Nota di ownership**: `EditProposal` è sempre figlia di `AnalysisResult` (FK obbligatoria `analysisResultId`).
 Gli edit manuali utente non vivono in `edit_proposals`: verranno persistiti in una struttura dedicata (`user_edits`) per evitare di mescolare output AI e decisioni utente.
+
+### WebSocket Events
+
+```typescript
+type WsEventType = "progress" | "state_change" | "completed" | "failed";
+
+interface WsProgressEvent {
+  type: WsEventType;
+  recordingId: string;
+  step?: string; // 'transcribing' | 'aligning' | 'quality' | 'llm_analyze' | 'merging'
+  percent?: number; // 0-100
+  message?: string;
+  newState?: RecordingStatus;
+  error?: string;
+}
+```
 
 ---
 
@@ -341,15 +357,13 @@ podcraft/
 │   ├── web/                      # Vite + React 19 frontend (SPA)
 │   │   ├── src/
 │   │   │   ├── pages/            # Route pages
-│   │   │   │   ├── Library.tsx         # Lista recordings
-│   │   │   │   └── RecordingDetail.tsx # Editor view
+│   │   │   │   ├── library-page.tsx      # Lista recordings
+│   │   │   │   └── recording-detail.tsx  # Editor view
 │   │   │   ├── components/
-│   │   │   │   ├── library/      # Cards recordings, filtri, stati
 │   │   │   │   ├── waveform/     # Wavesurfer.js editor + regioni
-│   │   │   │   ├── transcript/   # Transcript sincronizzato
 │   │   │   │   ├── proposals/    # Panel proposte con accept/reject
-│   │   │   │   ├── player/       # Audio player controls
-│   │   │   │   └── export/       # Export dialog + download
+│   │   │   │   ├── transcript/   # Transcript sincronizzato
+│   │   │   │   └── ui/           # shadcn/ui components
 │   │   │   ├── hooks/
 │   │   │   ├── stores/           # Zustand stores
 │   │   │   └── lib/              # API client, utils
@@ -361,33 +375,36 @@ podcraft/
 │   └── server/                   # Backend Node.js (Hono)
 │       ├── src/
 │       │   ├── index.ts          # Entry point: Hono app + WebSocket
+│       │   ├── config.ts         # Env config (RECORDINGS_DIR, CLAUDE_API_KEY, REDIS_URL, ...)
 │       │   ├── routes/
-│       │   │   ├── recordings.ts # CRUD recordings + stato
-│       │   │   ├── library.ts    # POST /api/library/sync (trigger scan da frontend)
-│       │   │   ├── transcriptions.ts
-│       │   │   ├── analysis.ts
-│       │   │   ├── proposals.ts  # Accept/reject/modify
-│       │   │   ├── export.ts
-│       │   │   └── files.ts      # Serve audio files
+│       │   │   ├── recordings.ts      # CRUD recordings + stato
+│       │   │   ├── library-routes.ts  # POST /api/library/sync
+│       │   │   ├── transcription-routes.ts
+│       │   │   ├── analysis-routes.ts # POST /analyze, GET /analysis, PATCH /proposals/:id
+│       │   │   ├── ws-routes.ts       # GET /api/recordings/:id/ws (WebSocket)
+│       │   │   └── files.ts           # Serve audio files
 │       │   ├── services/
-│       │   │   ├── library.ts    # Scan cartella, sync con DB
-│       │   │   ├── pipeline.ts   # Orchestrazione step
-│       │   │   ├── ml-client.ts  # HTTP client → ML Service
-│       │   │   ├── llm.ts        # Claude API + prompt templates
-│       │   │   ├── audio.ts      # FFmpeg wrapper
-│       │   │   └── ws.ts         # WebSocket per progress updates
+│       │   │   ├── library.ts              # Scan cartella, sync con DB
+│       │   │   ├── transcription-pipeline.ts
+│       │   │   ├── analysis-pipeline.ts    # Orchestrazione job quality + llm-analyze
+│       │   │   ├── llm.ts                  # Claude API + prompt templates
+│       │   │   └── ws.ts                   # WebSocket manager (rooms per recordingId)
 │       │   ├── jobs/             # BullMQ job processors
-│       │   │   ├── transcribe.job.ts
-│       │   │   ├── align.job.ts
+│       │   │   ├── queue.ts
+│       │   │   ├── worker.ts
 │       │   │   ├── quality.job.ts
-│       │   │   ├── llm-analyze.job.ts
-│       │   │   └── export.job.ts
+│       │   │   └── llm-analyze.job.ts
 │       │   ├── db/
 │       │   │   ├── schema.ts     # Drizzle schema
+│       │   │   ├── index.ts      # DB connection + auto-migration
 │       │   │   └── migrations/
 │       │   └── lib/
-│       │       ├── errors.ts     # Error types tipizzati
-│       │       └── logger.ts     # Structured logging
+│       │       ├── ml-client.ts          # HTTP client → ML Service
+│       │       ├── segment-grouper.ts    # Pure: words → segments
+│       │       ├── analysis-merge.ts     # Pure: merge quality + proposals
+│       │       ├── library-reconciliation.ts
+│       │       ├── file-hash.ts
+│       │       └── ffprobe.ts
 │       └── package.json
 │
 ├── packages/
@@ -411,12 +428,12 @@ podcraft/
 │       │   │   ├── tts.py        # POST /synthesize
 │       │   │   └── quality.py    # POST /assess-quality
 │       │   ├── models/           # Model loading & inference wrappers
-│       │   │   ├── base.py       # Provider interfaces
+│       │   │   ├── base.py
 │       │   │   ├── asr_model.py
 │       │   │   ├── aligner_model.py
 │       │   │   ├── tts_model.py
 │       │   │   └── quality_model.py
-│       │   └── lib/              # Shared utilities
+│       │   └── lib/
 │       │       ├── audio.py      # ffprobe/ffmpeg helpers
 │       │       ├── language.py   # ASR + TTS language normalization
 │       │       └── memory.py     # Memory sampling
@@ -425,9 +442,15 @@ podcraft/
 │       ├── .python-version       # Python 3.11 pin per uv
 │       └── tests/
 │
+├── docs/                         # Documentazione di progetto
+│   ├── architecture.md           # Questo file
+│   ├── sprint-plan.md            # Overview tutti gli sprint
+│   ├── sprint-2.md               # Sprint corrente (dettagliato)
+│   ├── sprint-1.md               # Sprint 1 completato (archivio)
+│   └── backlog.md                # Feature opzionali / idee future
+│
 └── scripts/
     └── download-models.sh        # Scarica pesi MLX da HuggingFace
-    # Dev orchestration: usare `pnpm dev` (gestito da Turborepo)
 ```
 
 ---
@@ -549,7 +572,7 @@ Pipeline asincrona gestita da BullMQ. Ogni step è un job separato.
 - Job `transcribe`: invia audio a ML Service → Qwen3-ASR-1.7B
 - Il job può passare `language` come hint (es. `it`, `en`) all'endpoint `/transcribe`
 - Se `language` non è passato, il ML service usa `ASR_DEFAULT_LANGUAGE` se configurato; altrimenti usa il default modello
-- Per audio > 20 min: chunking con VAD prima dell'invio
+- Per audio > 20 min: chunking con VAD prima dell'invio (da implementare)
 - Output: testo completo + language detection
 - Progresso inviato via WebSocket al frontend
 - Stato → `TRANSCRIBING` → `TRANSCRIBED`
@@ -572,14 +595,11 @@ Due job in parallelo:
   - `windows[]` con `window_start`, `window_end`, `mos`, `noisiness`, `discontinuity`, `coloration`, `loudness`
   - `average_mos`
   - `inference_time_seconds`
-- Parametri opzionali endpoint:
-  - `window_seconds` (default 3.0)
-  - `min_window_seconds` (se assente, eredita `window_seconds`; vincolo `<= window_seconds`)
-- Segmenti con MOS < 3.0 → flaggati come `LOW_QUALITY`
+- Segmenti con MOS < 3.0 → flaggati come `flagged: true, flaggedBy: 'auto'`
 
 **4b — LLM Editorial Analysis**
 
-- Job `llm-analyze`: invia transcript completo a Claude Sonnet 4.5
+- Job `llm-analyze`: invia transcript completo a Claude Sonnet 4.6
 - Prompt strutturato che richiede output JSON validato con Zod
 - Claude analizza: contenuto interessante, filler, ripetizioni, struttura narrativa, riorganizzazioni
 - Output: `AnalysisResult` (vedi sezione 4)
@@ -587,9 +607,9 @@ Due job in parallelo:
 ### Step 5 — Merge & Present
 
 - Combina quality scores + LLM proposals
-- Cross-reference: se un segmento è sia low-quality che tagliato → priorità al taglio
-- Se un segmento è low-quality ma non tagliato → proposta TTS replace
-- Stato → `ANALYZED` → `REVIEWED`
+- Cross-reference: se un segmento è sia low-quality che tagliato → priorità al taglio (nessuna proposta `tts_replace` aggiuntiva)
+- Se un segmento è low-quality ma non coperto da un `cut` → proposta `tts_replace` automatica
+- Stato → `ANALYZING` → `REVIEWED`
 
 ### Step 6 — Export (trigger: utente)
 
@@ -597,7 +617,7 @@ Due job in parallelo:
 - FFmpeg: tagli non-distruttivi, crossfade, normalizzazione loudness
 - Per segmenti TTS: genera audio con Qwen3-TTS (voice clone da 3s sample della registrazione)
   - Vincolo endpoint: `reference_audio` minimo 3.0 secondi (altrimenti 400 Bad Request)
-  - `reference_text` opzionale: se assente/vuoto il ML service auto-trascrive il clip (Qwen3-ASR) e usa la trascrizione come `ref_text` per ICL voice cloning
+  - `reference_text` opzionale: se assente/vuoto il ML service auto-trascrive il clip e usa la trascrizione come `ref_text` per ICL voice cloning
   - ML endpoint `POST /synthesize`: `text`, `reference_audio`, `reference_text` (opzionale), `language` (opzionale)
 - Crossfade automatico ai bordi delle inserzioni TTS
 - Output: WAV + MP3
@@ -619,7 +639,19 @@ interface AppConfig {
 }
 ```
 
-L'utente può configurare via UI (Settings page) o `.env` file.
+L'utente può configurare via UI (Settings page — Sprint 5) o `.env` file.
+
+**Env vars correnti (`.env.example`):**
+
+```bash
+RECORDINGS_DIR=/Users/.../registrazioni   # obbligatorio
+CLAUDE_API_KEY=sk-ant-...                 # obbligatorio per analisi LLM
+REDIS_URL=redis://127.0.0.1:6379          # default se non specificato
+ML_SERVICE_URL=http://127.0.0.1:5001      # default se non specificato
+DATABASE_URL=./podcraft.db                # default se non specificato
+PORT=4000                                 # default se non specificato
+HF_HOME=~/.podcraft/models                # storage modelli ML
+```
 
 ---
 
@@ -635,19 +667,7 @@ Queste pratiche sono vincolanti per tutto lo sviluppo:
 | Error types espliciti           | Mai throw generico; tipi `Result<T, E>` dove possibile.                              |
 | Structured logging              | Ogni job logga: `{ jobId, recordingId, step, status, duration, error? }`             |
 | Test per ogni job               | Ogni BullMQ job ha unit test con mock del ML service.                                |
+| Test per ogni funzione pura     | Ogni lib/ pura ha unit test propri.                                                  |
 | Integration test pipeline       | Test E2E che verifica il flusso completo con un audio di test.                       |
 | Idempotenza                     | Ogni job può essere rieseguito senza side-effect; controlla lo stato prima di agire. |
 | DB migrations versioniate       | Ogni cambio schema passa per una migration Drizzle tracciata.                        |
-
----
-
-## 10. Sviluppi Futuri (post-MVP)
-
-In ordine di priorità stimata:
-
-1. **Video generation con Remotion** — Composizioni React che producono video con waveform, sottotitoli, testo animato. I componenti del frontend sono riusabili.
-2. **Speaker diarization** — Identificazione automatica di chi parla (per interviste/dialoghi).
-3. **Traduzione e doppiaggio** — Traduzione del transcript + TTS nella lingua target.
-4. **Batch processing** — Processare una serie di episodi con settings condivisi.
-5. **Integrazione piattaforme** — Generazione RSS feed, upload diretto a Spotify/Apple Podcasts/YouTube.
-6. **Plugin system** — Estensioni community per nuovi tipi di analisi o formati.
