@@ -74,10 +74,10 @@ describe("RecordingDetailPage WS reconciliation", () => {
     vi.useRealTimers();
   });
 
-  it("shows ERROR immediately when a failed WS event arrives", async () => {
+  it("does not force ERROR locally when a failed WS event arrives", async () => {
     mockGetRecording
       .mockResolvedValueOnce({ ok: true, data: makeRecording("TRANSCRIBING") })
-      // Keep refetch pending so we can assert the immediate local transition to ERROR.
+      // Keep refetch pending so we can assert local state is still canonical until refetch.
       .mockImplementationOnce(
         () =>
           new Promise(() => {
@@ -93,15 +93,16 @@ describe("RecordingDetailPage WS reconciliation", () => {
     wsState.lastEvent = {
       type: "failed",
       recordingId: "rec-1",
+      jobId: "job-1",
       error: "ASR failed from websocket",
     };
     rerender(<RecordingDetailPage />);
 
     await waitFor(() => {
-      expect(screen.queryByText("Trascrizione in corso…")).toBeNull();
-      expect(screen.getByText("Errore")).toBeTruthy();
-      expect(screen.getByText("ASR failed from websocket")).toBeTruthy();
+      expect(screen.getByText("Trascrizione in corso…")).toBeTruthy();
+      expect(screen.queryByText("Errore")).toBeNull();
     });
+    expect(mockGetRecording).toHaveBeenCalledTimes(2);
   });
 
   it("retries refetch after failed WS events and eventually aligns with DB state", async () => {
@@ -129,6 +130,7 @@ describe("RecordingDetailPage WS reconciliation", () => {
     wsState.lastEvent = {
       type: "failed",
       recordingId: "rec-1",
+      jobId: "job-1",
       error: "WS temporary error",
     };
     rerender(<RecordingDetailPage />);
@@ -165,6 +167,7 @@ describe("RecordingDetailPage WS reconciliation", () => {
     wsState.lastEvent = {
       type: "failed",
       recordingId: "rec-1",
+      jobId: "job-1",
       error: "WS temporary error",
     };
     rerender(<RecordingDetailPage />);
@@ -204,5 +207,38 @@ describe("RecordingDetailPage WS reconciliation", () => {
       "TRANSCRIBING",
       expect.any(Function),
     );
+  });
+
+  it("ignores terminal events from stale jobs when active jobId differs", async () => {
+    mockGetRecording.mockResolvedValue({ ok: true, data: makeRecording("TRANSCRIBING") });
+
+    const { rerender } = render(<RecordingDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Trascrizione in corso…")).toBeTruthy();
+    });
+
+    wsState.lastEvent = {
+      type: "progress",
+      recordingId: "rec-1",
+      jobId: "job-active",
+      step: "transcribing",
+      percent: 50,
+    };
+    rerender(<RecordingDetailPage />);
+    await flushAsync();
+
+    mockGetRecording.mockClear();
+
+    wsState.lastEvent = {
+      type: "failed",
+      recordingId: "rec-1",
+      jobId: "job-stale",
+      error: "Stale failure",
+    };
+    rerender(<RecordingDetailPage />);
+    await flushAsync();
+
+    expect(mockGetRecording).not.toHaveBeenCalled();
+    expect(screen.getByText("Trascrizione in corso…")).toBeTruthy();
   });
 });

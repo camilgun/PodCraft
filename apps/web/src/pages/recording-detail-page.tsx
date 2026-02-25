@@ -38,6 +38,7 @@ export function RecordingDetailPage() {
   const [needsReconcile, setNeedsReconcile] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const activeWsJobIdRef = useRef<string | null>(null);
 
   // Reset page-local state when route param changes.
   useEffect(() => {
@@ -46,6 +47,7 @@ export function RecordingDetailPage() {
     setReconcileWarning(null);
     setNeedsReconcile(false);
     setCurrentTime(0);
+    activeWsJobIdRef.current = null;
   }, [id]);
 
   // Initial recording load
@@ -82,23 +84,25 @@ export function RecordingDetailPage() {
     setState({ kind: "loaded", recording });
   }, []);
 
+  // Keep track of the active WS job id when available.
+  useEffect(() => {
+    if (!lastEvent?.jobId) return;
+    if (lastEvent.type !== "progress" || lastEvent.step !== "transcribing") return;
+    activeWsJobIdRef.current = lastEvent.jobId;
+  }, [lastEvent]);
+
   // Mark the page as needing reconciliation when WS reports terminal events.
   useEffect(() => {
     if (!id || !lastEvent) return;
     if (lastEvent.type !== "state_change" && lastEvent.type !== "failed") return;
 
-    if (lastEvent.type === "failed") {
-      setState((prev) => {
-        if (prev.kind !== "loaded") return prev;
-        return {
-          kind: "loaded",
-          recording: {
-            ...prev.recording,
-            status: "ERROR",
-            errorMessage: lastEvent.error ?? prev.recording.errorMessage ?? "Transcription failed",
-          },
-        };
-      });
+    const eventJobId = lastEvent.jobId;
+    const activeJobId = activeWsJobIdRef.current;
+    if (eventJobId != null && activeJobId != null && eventJobId !== activeJobId) {
+      return;
+    }
+    if (eventJobId != null && activeJobId == null) {
+      activeWsJobIdRef.current = eventJobId;
     }
 
     setReconcileWarning(null);
@@ -124,6 +128,9 @@ export function RecordingDetailPage() {
 
       if (result.ok) {
         handleRecordingUpdate(result.data);
+        if (result.data.status !== "TRANSCRIBING") {
+          activeWsJobIdRef.current = null;
+        }
         setNeedsReconcile(false);
         setReconcileWarning(null);
         return;
@@ -185,6 +192,7 @@ export function RecordingDetailPage() {
       setActionError(null);
       // Reset transcript so it reloads when the new transcription completes.
       setTranscriptionState({ kind: "idle" });
+      activeWsJobIdRef.current = null;
       setState((prev) => {
         if (prev.kind !== "loaded") return prev;
         return {

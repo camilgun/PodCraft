@@ -249,6 +249,24 @@ describe("wsProgressEventSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("accepts optional jobId and rejects non-string jobId", () => {
+    const valid = wsProgressEventSchema.safeParse({
+      type: "failed",
+      recordingId: "rec-001",
+      jobId: "job-123",
+      error: "ASR failed",
+    });
+    expect(valid.success).toBe(true);
+
+    const invalid = wsProgressEventSchema.safeParse({
+      type: "failed",
+      recordingId: "rec-001",
+      jobId: 123,
+      error: "ASR failed",
+    });
+    expect(invalid.success).toBe(false);
+  });
 });
 
 describe("recordingSchema", () => {

@@ -62,6 +62,7 @@ export type WsProgressStep = "transcribing" | "aligning" | "quality" | "llm_anal
 export interface WsProgressEvent {
   type: WsEventType;
   recordingId: string;
+  jobId?: string;
   step?: WsProgressStep;
   percent?: number;
   message?: string;

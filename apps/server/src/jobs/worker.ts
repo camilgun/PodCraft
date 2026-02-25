@@ -24,9 +24,11 @@ export const transcriptionWorker = new Worker<TranscriptionJobData, Transcriptio
 );
 
 transcriptionWorker.on("active", (job: Job<TranscriptionJobData>) => {
+  const jobId = job.id === undefined ? undefined : String(job.id);
   wsManager.broadcast(job.data.recordingId, {
     type: "progress",
     recordingId: job.data.recordingId,
+    ...(jobId !== undefined ? { jobId } : {}),
     step: "transcribing",
     percent: 0,
   });
@@ -36,16 +38,19 @@ transcriptionWorker.on(
   "completed",
   (job: Job<TranscriptionJobData>, result: TranscriptionPipelineOutcome) => {
     const recordingId = job.data.recordingId;
+    const jobId = job.id === undefined ? undefined : String(job.id);
     if (result.finalState === "TRANSCRIBED") {
       wsManager.broadcast(recordingId, {
         type: "state_change",
         recordingId,
+        ...(jobId !== undefined ? { jobId } : {}),
         newState: "TRANSCRIBED",
       });
     } else {
       wsManager.broadcast(recordingId, {
         type: "failed",
         recordingId,
+        ...(jobId !== undefined ? { jobId } : {}),
         error: result.error,
       });
     }
@@ -62,10 +67,12 @@ transcriptionWorker.on(
 
 transcriptionWorker.on("failed", (job: Job<TranscriptionJobData> | undefined, err) => {
   const recordingId = job?.data?.recordingId;
+  const jobId = job?.id === undefined ? undefined : String(job.id);
   if (recordingId) {
     wsManager.broadcast(recordingId, {
       type: "failed",
       recordingId,
+      ...(jobId !== undefined ? { jobId } : {}),
       error: err instanceof Error ? err.message : String(err),
     });
   }

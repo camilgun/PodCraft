@@ -104,6 +104,7 @@ export type WsProgressStepFromSchema = z.infer<typeof wsProgressStepSchema>;
 export const wsProgressEventSchema = z.object({
   type: wsEventTypeSchema,
   recordingId: z.string(),
+  jobId: z.string().optional(),
   step: wsProgressStepSchema.optional(),
   percent: z.number().min(0).max(100).optional(),
   message: z.string().optional(),

@@ -113,6 +113,7 @@ describe("transcriptionWorker", () => {
       expect(mockBroadcast).toHaveBeenCalledWith("rec-active", {
         type: "progress",
         recordingId: "rec-active",
+        jobId: "job-active",
         step: "transcribing",
         percent: 0,
       });
@@ -130,6 +131,7 @@ describe("transcriptionWorker", () => {
       expect(mockBroadcast).toHaveBeenCalledWith("rec-done", {
         type: "state_change",
         recordingId: "rec-done",
+        jobId: "job-99",
         newState: "TRANSCRIBED",
       });
     });
@@ -148,6 +150,7 @@ describe("transcriptionWorker", () => {
       expect(mockBroadcast).toHaveBeenCalledWith("rec-err-outcome", {
         type: "failed",
         recordingId: "rec-err-outcome",
+        jobId: "job-100",
         error: "ASR failed",
       });
     });
@@ -179,6 +182,7 @@ describe("transcriptionWorker", () => {
       expect(mockBroadcast).toHaveBeenCalledWith("rec-fail", {
         type: "failed",
         recordingId: "rec-fail",
+        jobId: "job-77",
         error: "boom",
       });
     });
