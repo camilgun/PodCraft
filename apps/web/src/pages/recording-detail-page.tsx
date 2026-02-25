@@ -7,6 +7,7 @@ import { TranscriptViewer } from "@/components/transcript-viewer";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRecordingPoller } from "@/hooks/use-recording-poller";
+import { useRecordingWs } from "@/hooks/use-recording-ws";
 import { formatDuration, formatDate, formatFileSize } from "@/lib/format";
 
 type LoadState =
@@ -20,6 +21,12 @@ type TranscriptionState =
   | { kind: "loaded"; transcription: Transcription }
   | { kind: "error"; message: string };
 
+const RECONCILE_RETRY_INTERVAL_MS = 2000;
+const RECONCILE_FALLBACK_INTERVAL_MS = 10000;
+const RECONCILE_MAX_DURATION_MS = 30000;
+const RECONCILE_WARNING_MESSAGE =
+  "Aggiornamento in real-time non disponibile. Continuiamo con refresh periodico.";
+
 export function RecordingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
@@ -27,6 +34,8 @@ export function RecordingDetailPage() {
     kind: "idle",
   });
   const [actionError, setActionError] = useState<string | null>(null);
+  const [reconcileWarning, setReconcileWarning] = useState<string | null>(null);
+  const [needsReconcile, setNeedsReconcile] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -34,6 +43,8 @@ export function RecordingDetailPage() {
   useEffect(() => {
     setTranscriptionState({ kind: "idle" });
     setActionError(null);
+    setReconcileWarning(null);
+    setNeedsReconcile(false);
     setCurrentTime(0);
   }, [id]);
 
@@ -64,14 +75,86 @@ export function RecordingDetailPage() {
   }, [id]);
 
   const currentRecording = state.kind === "loaded" ? state.recording : undefined;
+  const { lastEvent, isConnected } = useRecordingWs(id);
 
   // Stable callback for the poller
   const handleRecordingUpdate = useCallback((recording: Recording) => {
     setState({ kind: "loaded", recording });
   }, []);
 
-  // Poll while TRANSCRIBING
-  useRecordingPoller(id, currentRecording?.status, handleRecordingUpdate);
+  // Mark the page as needing reconciliation when WS reports terminal events.
+  useEffect(() => {
+    if (!id || !lastEvent) return;
+    if (lastEvent.type !== "state_change" && lastEvent.type !== "failed") return;
+
+    if (lastEvent.type === "failed") {
+      setState((prev) => {
+        if (prev.kind !== "loaded") return prev;
+        return {
+          kind: "loaded",
+          recording: {
+            ...prev.recording,
+            status: "ERROR",
+            errorMessage: lastEvent.error ?? prev.recording.errorMessage ?? "Transcription failed",
+          },
+        };
+      });
+    }
+
+    setReconcileWarning(null);
+    setNeedsReconcile(true);
+  }, [id, lastEvent]);
+
+  // Reconcile with canonical DB state until a successful refetch occurs.
+  // This runs independently of isConnected because an open socket does not
+  // guarantee event delivery.
+  useEffect(() => {
+    if (!id || !needsReconcile) return;
+    const activeRecordingId = id;
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const startedAt = Date.now();
+
+    async function runAttempt() {
+      if (cancelled) return;
+
+      const result = await getRecording(activeRecordingId);
+      if (cancelled) return;
+
+      if (result.ok) {
+        handleRecordingUpdate(result.data);
+        setNeedsReconcile(false);
+        setReconcileWarning(null);
+        return;
+      }
+
+      const elapsedMs = Date.now() - startedAt;
+      const pastMaxDuration = elapsedMs >= RECONCILE_MAX_DURATION_MS;
+      if (pastMaxDuration) {
+        setReconcileWarning(RECONCILE_WARNING_MESSAGE);
+      }
+      const delayMs = pastMaxDuration
+        ? RECONCILE_FALLBACK_INTERVAL_MS
+        : RECONCILE_RETRY_INTERVAL_MS;
+
+      timer = setTimeout(() => {
+        void runAttempt();
+      }, delayMs);
+    }
+
+    void runAttempt();
+
+    return () => {
+      cancelled = true;
+      if (timer !== null) {
+        clearTimeout(timer);
+      }
+    };
+  }, [id, needsReconcile, handleRecordingUpdate]);
+
+  // Poll while TRANSCRIBING only when WS is not connected (fallback mode).
+  useRecordingPoller(id, isConnected ? undefined : currentRecording?.status, handleRecordingUpdate);
 
   // Load transcript when recording reaches TRANSCRIBED
   useEffect(() => {
@@ -199,6 +282,11 @@ export function RecordingDetailPage() {
               <div className="rounded-lg border bg-card p-4 flex items-center gap-3">
                 <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin shrink-0" />
                 <p className="text-sm text-muted-foreground">Trascrizione in corso…</p>
+              </div>
+            )}
+            {reconcileWarning != null && (
+              <div className="rounded-lg border bg-muted/40 p-4">
+                <p className="text-sm text-muted-foreground">{reconcileWarning}</p>
               </div>
             )}
 

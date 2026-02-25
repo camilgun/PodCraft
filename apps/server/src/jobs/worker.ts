@@ -44,6 +44,11 @@ transcriptionWorker.on(
       });
     } else {
       wsManager.broadcast(recordingId, {
+        type: "state_change",
+        recordingId,
+        newState: "ERROR",
+      });
+      wsManager.broadcast(recordingId, {
         type: "failed",
         recordingId,
         error: result.error,
@@ -63,6 +68,11 @@ transcriptionWorker.on(
 transcriptionWorker.on("failed", (job: Job<TranscriptionJobData> | undefined, err) => {
   const recordingId = job?.data?.recordingId;
   if (recordingId) {
+    wsManager.broadcast(recordingId, {
+      type: "state_change",
+      recordingId,
+      newState: "ERROR",
+    });
     wsManager.broadcast(recordingId, {
       type: "failed",
       recordingId,

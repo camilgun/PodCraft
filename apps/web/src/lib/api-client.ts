@@ -136,3 +136,9 @@ export async function getTranscription(recordingId: string): Promise<ApiResult<T
 export function getAudioUrl(id: string): string {
   return `/api/files/${id}/audio`;
 }
+
+/** Returns the WS URL for recording progress events. */
+export function getRecordingWsUrl(id: string): string {
+  const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
+  return `${wsProtocol}://${window.location.host}/api/recordings/${id}/ws`;
+}

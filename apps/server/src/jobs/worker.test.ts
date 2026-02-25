@@ -134,7 +134,7 @@ describe("transcriptionWorker", () => {
       });
     });
 
-    it("broadcasts failed when the pipeline outcome is ERROR", () => {
+    it("broadcasts state_change and failed when the pipeline outcome is ERROR", () => {
       const handler = handlers["completed"] as (
         job: MockJob,
         result: TranscriptionPipelineOutcome,
@@ -144,7 +144,12 @@ describe("transcriptionWorker", () => {
         error: "ASR failed",
       });
 
-      expect(mockBroadcast).toHaveBeenCalledWith("rec-err-outcome", {
+      expect(mockBroadcast).toHaveBeenNthCalledWith(1, "rec-err-outcome", {
+        type: "state_change",
+        recordingId: "rec-err-outcome",
+        newState: "ERROR",
+      });
+      expect(mockBroadcast).toHaveBeenNthCalledWith(2, "rec-err-outcome", {
         type: "failed",
         recordingId: "rec-err-outcome",
         error: "ASR failed",
@@ -170,11 +175,16 @@ describe("transcriptionWorker", () => {
   });
 
   describe("failed event handler", () => {
-    it("broadcasts failed with the error message when the job is available", () => {
+    it("broadcasts state_change and failed when the job is available", () => {
       const handler = handlers["failed"] as (job: MockJob | undefined, err: Error) => void;
       handler(makeJob("rec-fail", "job-77"), new Error("boom"));
 
-      expect(mockBroadcast).toHaveBeenCalledWith("rec-fail", {
+      expect(mockBroadcast).toHaveBeenNthCalledWith(1, "rec-fail", {
+        type: "state_change",
+        recordingId: "rec-fail",
+        newState: "ERROR",
+      });
+      expect(mockBroadcast).toHaveBeenNthCalledWith(2, "rec-fail", {
         type: "failed",
         recordingId: "rec-fail",
         error: "boom",
