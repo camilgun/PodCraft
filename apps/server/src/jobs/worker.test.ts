@@ -1,28 +1,35 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Job } from "bullmq";
 import type { TranscriptionJobData } from "./queue.js";
+import type { WsProgressEvent } from "@podcraft/shared";
+import type { TranscriptionPipelineOutcome } from "../services/transcription-pipeline.js";
 
 // vi.hoisted ensures these values are initialized before vi.mock factories run
 // (vi.mock is hoisted before imports, so variables declared here are available inside factories)
-const { processorRef, handlers, mockPipeline, initArgs } = vi.hoisted(() => {
-  const processorRef: { current: ((job: unknown) => Promise<void>) | undefined } = {
+const { processorRef, handlers, mockPipeline, mockBroadcast, initArgs } = vi.hoisted(() => {
+  const processorRef: { current: ((job: unknown) => Promise<unknown>) | undefined } = {
     current: undefined,
   };
   const handlers: Record<string, (...args: unknown[]) => unknown> = {};
-  const mockPipeline = vi.fn<(recordingId: string) => Promise<void>>();
+  const mockPipeline = vi.fn<(recordingId: string) => Promise<TranscriptionPipelineOutcome>>();
+  const mockBroadcast = vi.fn<(recordingId: string, event: WsProgressEvent) => void>();
   // Captures Worker constructor args at module init time (before vi.clearAllMocks runs)
   const initArgs: { name: string | undefined; opts: Record<string, unknown> | undefined } = {
     name: undefined,
     opts: undefined,
   };
-  return { processorRef, handlers, mockPipeline, initArgs };
+  return { processorRef, handlers, mockPipeline, mockBroadcast, initArgs };
 });
 
 vi.mock("bullmq", () => ({
   Worker: vi
     .fn()
     .mockImplementation(
-      (name: string, processor: (job: unknown) => Promise<void>, opts: Record<string, unknown>) => {
+      (
+        name: string,
+        processor: (job: unknown) => Promise<unknown>,
+        opts: Record<string, unknown>,
+      ) => {
         processorRef.current = processor;
         initArgs.name = name;
         initArgs.opts = opts;
@@ -43,6 +50,10 @@ vi.mock("../services/transcription-pipeline.js", () => ({
   runTranscriptionPipeline: mockPipeline,
 }));
 
+vi.mock("../services/ws.js", () => ({
+  wsManager: { broadcast: mockBroadcast },
+}));
+
 // Side-effect import: triggers module initialization (new Worker(...) + .on() calls)
 import "../jobs/worker.js";
 
@@ -55,7 +66,7 @@ function makeJob(recordingId: string, id = "job-1"): MockJob {
 describe("transcriptionWorker", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPipeline.mockResolvedValue(undefined);
+    mockPipeline.mockResolvedValue({ finalState: "TRANSCRIBED" });
   });
 
   it("creates a Worker on the 'transcription' queue with concurrency 1", () => {
@@ -66,10 +77,11 @@ describe("transcriptionWorker", () => {
 
   describe("processor (job handler)", () => {
     it("invokes runTranscriptionPipeline with the job's recordingId", async () => {
-      await processorRef.current!(makeJob("rec-abc"));
+      const result = await processorRef.current!(makeJob("rec-abc"));
 
       expect(mockPipeline).toHaveBeenCalledOnce();
       expect(mockPipeline).toHaveBeenCalledWith("rec-abc");
+      expect(result).toEqual({ finalState: "TRANSCRIBED" });
     });
 
     it("logs worker_job_start with recordingId and jobId before running the pipeline", async () => {
@@ -92,11 +104,60 @@ describe("transcriptionWorker", () => {
     });
   });
 
+  describe("active event handler", () => {
+    it("broadcasts progress at the beginning of transcription", () => {
+      const handler = handlers["active"] as (job: MockJob) => void;
+      handler(makeJob("rec-active", "job-active"));
+
+      expect(mockBroadcast).toHaveBeenCalledOnce();
+      expect(mockBroadcast).toHaveBeenCalledWith("rec-active", {
+        type: "progress",
+        recordingId: "rec-active",
+        step: "transcribing",
+        percent: 0,
+      });
+    });
+  });
+
   describe("completed event handler", () => {
+    it("broadcasts state_change when the pipeline finishes in TRANSCRIBED", () => {
+      const handler = handlers["completed"] as (
+        job: MockJob,
+        result: TranscriptionPipelineOutcome,
+      ) => void;
+      handler(makeJob("rec-done", "job-99"), { finalState: "TRANSCRIBED" });
+
+      expect(mockBroadcast).toHaveBeenCalledWith("rec-done", {
+        type: "state_change",
+        recordingId: "rec-done",
+        newState: "TRANSCRIBED",
+      });
+    });
+
+    it("broadcasts failed when the pipeline outcome is ERROR", () => {
+      const handler = handlers["completed"] as (
+        job: MockJob,
+        result: TranscriptionPipelineOutcome,
+      ) => void;
+      handler(makeJob("rec-err-outcome", "job-100"), {
+        finalState: "ERROR",
+        error: "ASR failed",
+      });
+
+      expect(mockBroadcast).toHaveBeenCalledWith("rec-err-outcome", {
+        type: "failed",
+        recordingId: "rec-err-outcome",
+        error: "ASR failed",
+      });
+    });
+
     it("logs worker_job_complete with recordingId and jobId", () => {
       const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-      const handler = handlers["completed"] as (job: MockJob) => void;
-      handler(makeJob("rec-done", "job-99"));
+      const handler = handlers["completed"] as (
+        job: MockJob,
+        result: TranscriptionPipelineOutcome,
+      ) => void;
+      handler(makeJob("rec-done", "job-99"), { finalState: "TRANSCRIBED" });
 
       const output = logSpy.mock.calls[0]![0] as string;
       const parsed = JSON.parse(output) as Record<string, unknown>;
@@ -109,6 +170,17 @@ describe("transcriptionWorker", () => {
   });
 
   describe("failed event handler", () => {
+    it("broadcasts failed with the error message when the job is available", () => {
+      const handler = handlers["failed"] as (job: MockJob | undefined, err: Error) => void;
+      handler(makeJob("rec-fail", "job-77"), new Error("boom"));
+
+      expect(mockBroadcast).toHaveBeenCalledWith("rec-fail", {
+        type: "failed",
+        recordingId: "rec-fail",
+        error: "boom",
+      });
+    });
+
     it("logs worker_job_failed with error, recordingId, and jobId", () => {
       const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       const handler = handlers["failed"] as (job: MockJob, err: Error) => void;
@@ -135,6 +207,13 @@ describe("transcriptionWorker", () => {
       expect(parsed.recordingId).toBeUndefined();
       expect(parsed.jobId).toBeUndefined();
       expect(parsed.error).toBe("Error: queue error");
+    });
+
+    it("does not broadcast when BullMQ passes undefined job", () => {
+      const handler = handlers["failed"] as (job: MockJob | undefined, err: Error) => void;
+      handler(undefined, new Error("queue error"));
+
+      expect(mockBroadcast).not.toHaveBeenCalled();
     });
   });
 });

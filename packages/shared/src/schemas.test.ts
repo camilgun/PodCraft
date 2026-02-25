@@ -9,6 +9,8 @@ import {
   recordingsListResponseSchema,
   recordingDetailResponseSchema,
   recordingStatusSchema,
+  wsEventTypeSchema,
+  wsProgressEventSchema,
   alignedWordSchema,
   alignedSegmentSchema,
   transcriptionSchema,
@@ -24,6 +26,7 @@ import {
   type RecordingFromSchema,
   type RecordingsListResponseFromSchema,
   type RecordingDetailResponseFromSchema,
+  type WsProgressEventFromSchema,
   type AlignedWordFromSchema,
   type AlignedSegmentFromSchema,
   type TranscriptionFromSchema,
@@ -200,6 +203,51 @@ describe("recordingStatusSchema", () => {
   it("rejects an invalid status", () => {
     expect(recordingStatusSchema.safeParse("PENDING").success).toBe(false);
     expect(recordingStatusSchema.safeParse("").success).toBe(false);
+  });
+});
+
+describe("wsEventTypeSchema", () => {
+  it("accepts all valid WS event types", () => {
+    for (const wsType of ["progress", "state_change", "completed", "failed"]) {
+      expect(wsEventTypeSchema.safeParse(wsType).success).toBe(true);
+    }
+  });
+
+  it("rejects invalid WS event type", () => {
+    expect(wsEventTypeSchema.safeParse("unknown").success).toBe(false);
+  });
+});
+
+describe("wsProgressEventSchema", () => {
+  it("accepts a valid progress event payload", () => {
+    const parsed: WsProgressEventFromSchema = wsProgressEventSchema.parse({
+      type: "progress",
+      recordingId: "rec-001",
+      step: "transcribing",
+      percent: 42,
+      message: "Transcribing audio",
+    });
+
+    expect(parsed.type).toBe("progress");
+    expect(parsed.percent).toBe(42);
+  });
+
+  it("rejects percent above 100", () => {
+    const result = wsProgressEventSchema.safeParse({
+      type: "progress",
+      recordingId: "rec-001",
+      percent: 101,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects invalid newState value", () => {
+    const result = wsProgressEventSchema.safeParse({
+      type: "state_change",
+      recordingId: "rec-001",
+      newState: "DONE",
+    });
+    expect(result.success).toBe(false);
   });
 });
 

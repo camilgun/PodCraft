@@ -26,6 +26,9 @@ export type {
 // ─── Domain types ─────────────────────────────────────────────────────────────
 export type {
   RecordingStatus,
+  WsEventType,
+  WsProgressStep,
+  WsProgressEvent,
   Recording,
   LibrarySyncResponse,
   TranscribeStartResponse,
@@ -40,6 +43,9 @@ export type {
 
 export {
   recordingStatusSchema,
+  wsEventTypeSchema,
+  wsProgressStepSchema,
+  wsProgressEventSchema,
   recordingSchema,
   recordingsListResponseSchema,
   recordingDetailResponseSchema,
@@ -56,6 +62,9 @@ export {
 } from "./schemas.js";
 export type {
   RecordingStatusFromSchema,
+  WsEventTypeFromSchema,
+  WsProgressStepFromSchema,
+  WsProgressEventFromSchema,
   RecordingFromSchema,
   RecordingsListResponseFromSchema,
   RecordingDetailResponseFromSchema,

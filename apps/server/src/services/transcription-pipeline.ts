@@ -10,6 +10,10 @@ export type { GroupWordsOptions } from "../lib/segment-grouper.js";
 
 // ─── Pipeline ─────────────────────────────────────────────────────────────
 
+export type TranscriptionPipelineOutcome =
+  | { finalState: "TRANSCRIBED" }
+  | { finalState: "ERROR"; error: string };
+
 function nowIso(): string {
   return new Date().toISOString();
 }
@@ -31,7 +35,9 @@ async function setRecordingError(recordingId: string, message: string): Promise<
  *
  * Called by the BullMQ Worker. Sets recording to ERROR on any failure.
  */
-export async function runTranscriptionPipeline(recordingId: string): Promise<void> {
+export async function runTranscriptionPipeline(
+  recordingId: string,
+): Promise<TranscriptionPipelineOutcome> {
   const start = Date.now();
 
   try {
@@ -39,15 +45,16 @@ export async function runTranscriptionPipeline(recordingId: string): Promise<voi
     const rows = await db.select().from(recordings).where(eq(recordings.id, recordingId)).limit(1);
 
     if (rows.length === 0) {
+      const message = "Recording not found";
       console.error(
         JSON.stringify({
           recordingId,
           step: "fetch",
           status: "error",
-          error: "Recording not found",
+          error: message,
         }),
       );
-      return;
+      return { finalState: "ERROR", error: message };
     }
 
     const row = rows[0]!;
@@ -66,6 +73,7 @@ export async function runTranscriptionPipeline(recordingId: string): Promise<voi
     const asrStart = Date.now();
     const asrResult = await mlTranscribe(filePath, language);
     if (!asrResult.ok) {
+      const message = `ASR failed: ${asrResult.error}`;
       console.error(
         JSON.stringify({
           recordingId,
@@ -75,8 +83,8 @@ export async function runTranscriptionPipeline(recordingId: string): Promise<voi
           durationMs: Date.now() - asrStart,
         }),
       );
-      await setRecordingError(recordingId, `ASR failed: ${asrResult.error}`);
-      return;
+      await setRecordingError(recordingId, message);
+      return { finalState: "ERROR", error: message };
     }
 
     console.log(
@@ -93,6 +101,7 @@ export async function runTranscriptionPipeline(recordingId: string): Promise<voi
     const alignStart = Date.now();
     const alignResult = await mlAlign(filePath, asrResult.data.text, asrResult.data.language);
     if (!alignResult.ok) {
+      const message = `Alignment failed: ${alignResult.error}`;
       console.error(
         JSON.stringify({
           recordingId,
@@ -102,8 +111,8 @@ export async function runTranscriptionPipeline(recordingId: string): Promise<voi
           durationMs: Date.now() - alignStart,
         }),
       );
-      await setRecordingError(recordingId, `Alignment failed: ${alignResult.error}`);
-      return;
+      await setRecordingError(recordingId, message);
+      return { finalState: "ERROR", error: message };
     }
 
     console.log(
@@ -129,7 +138,7 @@ export async function runTranscriptionPipeline(recordingId: string): Promise<voi
         }),
       );
       await setRecordingError(recordingId, message);
-      return;
+      return { finalState: "ERROR", error: message };
     }
 
     // 6. Persist to DB (transaction: delete old, insert new, update recording)
@@ -173,8 +182,11 @@ export async function runTranscriptionPipeline(recordingId: string): Promise<voi
         totalDurationMs: Date.now() - start,
       }),
     );
+
+    return { finalState: "TRANSCRIBED" };
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
+    const message = `Unexpected pipeline error: ${errorObj.message}`;
     console.error(
       JSON.stringify({
         recordingId,
@@ -185,6 +197,7 @@ export async function runTranscriptionPipeline(recordingId: string): Promise<voi
         durationMs: Date.now() - start,
       }),
     );
-    await setRecordingError(recordingId, `Unexpected pipeline error: ${errorObj.message}`);
+    await setRecordingError(recordingId, message);
+    return { finalState: "ERROR", error: message };
   }
 }

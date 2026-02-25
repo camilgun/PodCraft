@@ -55,6 +55,20 @@ export type RecordingStatus =
   | "ERROR"
   | "FILE_MISSING";
 
+export type WsEventType = "progress" | "state_change" | "completed" | "failed";
+
+export type WsProgressStep = "transcribing" | "aligning" | "quality" | "llm_analyze" | "merging";
+
+export interface WsProgressEvent {
+  type: WsEventType;
+  recordingId: string;
+  step?: WsProgressStep;
+  percent?: number;
+  message?: string;
+  newState?: RecordingStatus;
+  error?: string;
+}
+
 export interface Recording {
   id: string;
   filePath: string;

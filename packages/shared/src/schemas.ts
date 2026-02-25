@@ -87,6 +87,32 @@ export const recordingStatusSchema = z.enum([
 
 export type RecordingStatusFromSchema = z.infer<typeof recordingStatusSchema>;
 
+export const wsEventTypeSchema = z.enum(["progress", "state_change", "completed", "failed"]);
+
+export type WsEventTypeFromSchema = z.infer<typeof wsEventTypeSchema>;
+
+export const wsProgressStepSchema = z.enum([
+  "transcribing",
+  "aligning",
+  "quality",
+  "llm_analyze",
+  "merging",
+]);
+
+export type WsProgressStepFromSchema = z.infer<typeof wsProgressStepSchema>;
+
+export const wsProgressEventSchema = z.object({
+  type: wsEventTypeSchema,
+  recordingId: z.string(),
+  step: wsProgressStepSchema.optional(),
+  percent: z.number().min(0).max(100).optional(),
+  message: z.string().optional(),
+  newState: recordingStatusSchema.optional(),
+  error: z.string().optional(),
+});
+
+export type WsProgressEventFromSchema = z.infer<typeof wsProgressEventSchema>;
+
 export const recordingSchema = z.object({
   id: z.string(),
   filePath: z.string(),
