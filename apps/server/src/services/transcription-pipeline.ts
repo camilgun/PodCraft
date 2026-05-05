@@ -98,6 +98,13 @@ export async function runTranscriptionPipeline(
     );
 
     // 4. Alignment
+    if (!asrResult.data.text.trim()) {
+      const message = "ASR returned empty transcript — no speech detected";
+      console.error(JSON.stringify({ recordingId, step: "asr", status: "error", error: message }));
+      await setRecordingError(recordingId, message);
+      return { finalState: "ERROR", error: message };
+    }
+
     const alignStart = Date.now();
     const alignResult = await mlAlign(filePath, asrResult.data.text, asrResult.data.language);
     if (!alignResult.ok) {
