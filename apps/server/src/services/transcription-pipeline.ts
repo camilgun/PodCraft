@@ -141,6 +141,13 @@ export async function runTranscriptionPipeline(
       return { finalState: "ERROR", error: message };
     }
 
+    // Sanitize: clamp endTime to startTime if ASR produced inverted timestamps
+    const sanitizedSegments = segments.map((seg) => ({
+      ...seg,
+      endTime: Math.max(seg.endTime, seg.startTime),
+      words: seg.words.map((w) => ({ ...w, endTime: Math.max(w.endTime, w.startTime) })),
+    }));
+
     // 6. Persist to DB (transaction: delete old, insert new, update recording)
     const transcriptionId = randomUUID();
     const createdAt = nowIso();
@@ -154,7 +161,7 @@ export async function runTranscriptionPipeline(
           id: transcriptionId,
           recordingId,
           fullText: asrResult.data.text,
-          segments: JSON.stringify(segments),
+          segments: JSON.stringify(sanitizedSegments),
           modelUsed: asrResult.data.model_used,
           languageDetected: asrResult.data.language,
           createdAt,
