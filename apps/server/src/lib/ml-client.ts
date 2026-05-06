@@ -1,20 +1,30 @@
 import { readFile } from "node:fs/promises";
+import { Agent, fetch as undiciFetch, FormData as UndiciFormData } from "undici";
 import { transcribeResponseSchema, alignResponseSchema } from "@podcraft/shared";
 import type { TranscribeResponse, AlignResponse } from "@podcraft/shared";
 import { config } from "../config.js";
 
 export type MlResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
+// Long inference can take tens of minutes for hour-long audio files.
+// headersTimeout and bodyTimeout in undici default to 300s — too short for large files.
+const ML_REQUEST_TIMEOUT_MS = 90 * 60 * 1000; // 90 minutes
+
+const mlAgent = new Agent({
+  connectTimeout: 30_000,
+  headersTimeout: ML_REQUEST_TIMEOUT_MS,
+  bodyTimeout: ML_REQUEST_TIMEOUT_MS,
+});
+
 async function buildAudioFormData(
   filePath: string,
   fields: Record<string, string>,
-): Promise<FormData> {
+): Promise<UndiciFormData> {
   const buf = await readFile(filePath);
-  const blob = new Blob([buf]);
   const filename = filePath.split("/").pop() ?? "audio";
 
-  const form = new FormData();
-  form.append("file", blob, filename);
+  const form = new UndiciFormData();
+  form.append("file", new File([buf], filename));
   for (const [key, value] of Object.entries(fields)) {
     form.append(key, value);
   }
@@ -30,10 +40,11 @@ export async function mlTranscribe(
     const fields: Record<string, string> = {};
     if (language) fields["language"] = language;
     const form = await buildAudioFormData(filePath, fields);
-    response = await fetch(`${config.mlServiceUrl}/transcribe`, {
+    response = (await undiciFetch(`${config.mlServiceUrl}/transcribe`, {
       method: "POST",
       body: form,
-    });
+      dispatcher: mlAgent,
+    })) as Response;
   } catch (err) {
     return { ok: false, error: `Network error calling /transcribe: ${String(err)}` };
   }
@@ -68,10 +79,11 @@ export async function mlAlign(
     const fields: Record<string, string> = { text };
     if (language) fields["language"] = language;
     const form = await buildAudioFormData(filePath, fields);
-    response = await fetch(`${config.mlServiceUrl}/align`, {
+    response = (await undiciFetch(`${config.mlServiceUrl}/align`, {
       method: "POST",
       body: form,
-    });
+      dispatcher: mlAgent,
+    })) as Response;
   } catch (err) {
     return { ok: false, error: `Network error calling /align: ${String(err)}` };
   }
