@@ -17,6 +17,9 @@ const ffprobeStreamSchema = z.object({
 const ffprobeFormatSchema = z.object({
   duration: z.string(),
   size: z.string(),
+  tags: z
+    .object({ creation_time: z.string().optional() })
+    .optional(),
 });
 
 const ffprobeOutputSchema = z.object({
@@ -32,6 +35,27 @@ export interface AudioMetadata {
   channels: number;
   format: "wav" | "mp3" | "m4a" | "flac" | "ogg";
   fileSizeBytes: number;
+}
+
+/**
+ * Reads the `creation_time` tag embedded in the file container (e.g. Voice Memos m4a).
+ * Returns an ISO 8601 string, or null when the tag is absent.
+ */
+export async function extractRecordedAt(filePath: string): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync("ffprobe", [
+      "-v", "quiet",
+      "-print_format", "json",
+      "-show_format",
+      filePath,
+    ]);
+    const raw = JSON.parse(stdout) as unknown;
+    const parsed = z.object({ format: ffprobeFormatSchema }).safeParse(raw);
+    if (!parsed.success) return null;
+    return parsed.data.format.tags?.creation_time ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**

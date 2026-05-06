@@ -93,6 +93,8 @@ export interface Recording {
   status: RecordingStatus;
   languageDetected?: string | null;
   errorMessage?: string | null;
+  /** ISO 8601 original recording date extracted from file metadata (e.g. Voice Memos creation_time). */
+  recordedAt?: string | null;
   createdAt: string; // ISO 8601
   updatedAt: string;
 }

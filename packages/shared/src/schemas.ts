@@ -147,6 +147,7 @@ export const recordingSchema = z.object({
   status: recordingStatusSchema,
   languageDetected: z.string().nullish(),
   errorMessage: z.string().nullish(),
+  recordedAt: isoDatetimeSchema.nullish(),
   createdAt: isoDatetimeSchema,
   updatedAt: isoDatetimeSchema,
 });

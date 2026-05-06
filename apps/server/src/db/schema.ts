@@ -20,6 +20,7 @@ export const recordings = sqliteTable(
     status: text("status").notNull().default("IMPORTED"),
     languageDetected: text("language_detected"),
     errorMessage: text("error_message"),
+    recordedAt: text("recorded_at"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },

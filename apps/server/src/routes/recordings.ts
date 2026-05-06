@@ -33,6 +33,7 @@ function rowToRecording(row: typeof recordings.$inferSelect): Recording {
     status: row.status as Recording["status"],
     languageDetected: row.languageDetected,
     errorMessage: row.errorMessage,
+    recordedAt: row.recordedAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

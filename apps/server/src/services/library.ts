@@ -6,7 +6,7 @@ import { SUPPORTED_AUDIO_FORMATS, type RecordingStatus } from "@podcraft/shared"
 import { db } from "../db/index.js";
 import { recordings } from "../db/schema.js";
 import { computeFileHash } from "../lib/file-hash.js";
-import { probeAudioFile } from "../lib/ffprobe.js";
+import { probeAudioFile, extractRecordedAt } from "../lib/ffprobe.js";
 import {
   reconcileLibraryFiles,
   type LibraryDiskFile,
@@ -58,17 +58,20 @@ export async function runLibrarySync(): Promise<LibrarySyncSummary> {
     format: "wav" | "mp3" | "m4a" | "flac" | "ogg";
     fileSizeBytes: number;
     originalFilename: string;
+    recordedAt: string | null;
   })[] = [];
 
   for (const filePath of audioFiles) {
     try {
       const metadata = await probeAudioFile(filePath);
       const fileHash = await computeFileHash(filePath, metadata.fileSizeBytes);
+      const recordedAt = await extractRecordedAt(filePath);
 
       diskFiles.push({
         filePath,
         fileHash,
         originalFilename: getBasename(filePath),
+        recordedAt,
         ...metadata,
       });
     } catch (err) {
@@ -180,6 +183,7 @@ export async function runLibrarySync(): Promise<LibrarySyncSummary> {
           format: diskFile.format,
           fileSizeBytes: diskFile.fileSizeBytes,
           status: "IMPORTED",
+          recordedAt: diskFile.recordedAt,
           createdAt: now,
           updatedAt: now,
         })

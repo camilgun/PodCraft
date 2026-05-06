@@ -382,6 +382,12 @@ export function RecordingDetailPage() {
                   <dt className="text-muted-foreground">Aggiunto il</dt>
                   <dd className="font-medium">{formatDate(state.recording.createdAt)}</dd>
                 </div>
+                {state.recording.recordedAt != null && (
+                  <div>
+                    <dt className="text-muted-foreground">Registrato il</dt>
+                    <dd className="font-medium">{formatDate(state.recording.recordedAt)}</dd>
+                  </div>
+                )}
                 {state.recording.languageDetected != null && (
                   <div>
                     <dt className="text-muted-foreground">Lingua</dt>

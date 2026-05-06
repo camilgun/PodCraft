@@ -85,6 +85,14 @@ export function RecordingCard({
               {formatDate(recording.createdAt)}
             </dd>
           </div>
+          {recording.recordedAt != null && (
+            <div className="col-span-2">
+              <dt className="inline">Recorded: </dt>
+              <dd className="inline font-medium text-foreground">
+                {formatDate(recording.recordedAt)}
+              </dd>
+            </div>
+          )}
         </dl>
         {recording.status === "ERROR" && recording.errorMessage != null && (
           <p className="mt-2 text-xs text-destructive truncate">{recording.errorMessage}</p>
