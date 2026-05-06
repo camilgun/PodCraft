@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from pydantic import TypeAdapter, ValidationError
 from starlette.concurrency import run_in_threadpool
 
 from app.config import get_settings
@@ -30,7 +31,7 @@ from app.lib.audio import (
 from app.lib.language import is_supported_asr_language_hint, resolve_asr_prompt_language
 from app.lib.memory import MemorySampler
 from app.models.aligner_model import AlignerLoadError, get_aligner_model
-from app.schemas import AlignedWord, AlignResponse
+from app.schemas import AlignedWord, AlignResponse, TranscribeChunk
 
 logger = logging.getLogger("podcraft.ml")
 
@@ -42,6 +43,7 @@ ALIGN_INFERENCE_SEMAPHORE = asyncio.Semaphore(ALIGN_MAX_CONCURRENT_INFERENCES)
 # Qwen3-ForcedAligner-0.6B supports ≤ 5 min.  Use 4 min as the default
 # chunk size to leave a safety margin.
 ALIGN_MAX_CHUNK_SECONDS = 240.0
+TRANSCRIBE_CHUNKS_ADAPTER = TypeAdapter(list[TranscribeChunk])
 
 
 def _log_align_status(
@@ -178,6 +180,28 @@ def _split_text_for_chunks(
     return result
 
 
+def _parse_transcribe_chunks(chunks_json: str | None) -> list[TranscribeChunk] | None:
+    if chunks_json is None:
+        return None
+
+    try:
+        raw_chunks = json.loads(chunks_json)
+        chunks = TRANSCRIBE_CHUNKS_ADAPTER.validate_python(raw_chunks)
+    except (json.JSONDecodeError, ValidationError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Field 'chunks_json' must be a valid TranscribeChunk[] JSON payload",
+        ) from exc
+
+    if not chunks:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Field 'chunks_json' must contain at least one chunk",
+        )
+
+    return chunks
+
+
 def _align_single_chunk(
     model: object,
     chunk: AudioChunk,
@@ -197,6 +221,35 @@ def _align_single_chunk(
     return _map_aligned_words(output, time_offset=chunk.start_offset)
 
 
+def _align_chunked_with_transcript_chunks(
+    *,
+    model: object,
+    audio_chunks: list[AudioChunk],
+    transcript_chunks: list[TranscribeChunk],
+    prompt_language: str,
+) -> list[AlignedWord]:
+    if len(audio_chunks) != len(transcript_chunks):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Field 'chunks_json' chunk count does not match audio chunk count "
+                f"({len(transcript_chunks)} != {len(audio_chunks)})"
+            ),
+        )
+
+    all_words: list[AlignedWord] = []
+    for chunk, transcript_chunk in zip(audio_chunks, transcript_chunks, strict=True):
+        all_words.extend(
+            _align_single_chunk(
+                model,
+                chunk,
+                transcript_chunk.text,
+                prompt_language,
+            )
+        )
+    return all_words
+
+
 router = APIRouter(tags=["align"])
 
 
@@ -205,6 +258,7 @@ async def align_audio(
     file: Annotated[UploadFile, File(...)],
     text: Annotated[str, Form(...)],
     language: Annotated[str | None, Form()] = None,
+    chunks_json: Annotated[str | None, Form()] = None,
 ) -> AlignResponse:
     """Generate word-level timestamps for an uploaded audio and transcript."""
     settings = get_settings()
@@ -230,6 +284,7 @@ async def align_audio(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Field 'text' must be a non-empty string",
             )
+        transcript_chunks = _parse_transcribe_chunks(chunks_json)
 
         if requested_language is not None:
             requested_language_hint = requested_language.strip()
@@ -289,8 +344,22 @@ async def align_audio(
                         ALIGN_MAX_CHUNK_SECONDS,
                     )
                     chunk_count = len(audio_chunks)
-                    chunk_texts = _split_text_for_chunks(
-                        transcript, audio_chunks, audio_duration_seconds,
+                    if transcript_chunks is not None and len(transcript_chunks) != chunk_count:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=(
+                                "Field 'chunks_json' chunk count does not match audio chunk count "
+                                f"({len(transcript_chunks)} != {chunk_count})"
+                            ),
+                        )
+                    chunk_texts = (
+                        None
+                        if transcript_chunks is not None
+                        else _split_text_for_chunks(
+                            transcript,
+                            audio_chunks,
+                            audio_duration_seconds,
+                        )
                     )
 
                     logger.info(
@@ -299,32 +368,58 @@ async def align_audio(
                             "chunk_count": chunk_count,
                             "audio_duration": audio_duration_seconds,
                             "chunk_seconds": ALIGN_MAX_CHUNK_SECONDS,
+                            "chunk_text_source": (
+                                "transcribe_chunks"
+                                if transcript_chunks is not None
+                                else "duration_proportional"
+                            ),
                         })
                     )
 
-                    all_words: list[AlignedWord] = []
-                    for i, (chunk, chunk_text) in enumerate(
-                        zip(audio_chunks, chunk_texts, strict=True)
-                    ):
-                        logger.info(
-                            json.dumps({
-                                "step": "align_chunk",
-                                "chunk_index": i,
-                                "chunk_offset": chunk.start_offset,
-                                "chunk_duration": chunk.duration,
-                                "chunk_word_count": len(chunk_text.split()),
-                            })
+                    if transcript_chunks is not None:
+                        for i, (chunk, transcript_chunk) in enumerate(
+                            zip(audio_chunks, transcript_chunks, strict=True)
+                        ):
+                            logger.info(
+                                json.dumps({
+                                    "step": "align_chunk",
+                                    "chunk_index": i,
+                                    "chunk_offset": chunk.start_offset,
+                                    "chunk_duration": chunk.duration,
+                                    "chunk_word_count": len(transcript_chunk.text.split()),
+                                })
+                            )
+                        words = await run_in_threadpool(
+                            _align_chunked_with_transcript_chunks,
+                            model=model,
+                            audio_chunks=audio_chunks,
+                            transcript_chunks=transcript_chunks,
+                            prompt_language=prompt_language,
                         )
-                        chunk_words = await run_in_threadpool(
-                            _align_single_chunk,
-                            model,
-                            chunk,
-                            chunk_text,
-                            prompt_language,
-                        )
-                        all_words.extend(chunk_words)
+                    else:
+                        all_words: list[AlignedWord] = []
+                        for i, (chunk, chunk_text) in enumerate(
+                            zip(audio_chunks, chunk_texts or [], strict=True)
+                        ):
+                            logger.info(
+                                json.dumps({
+                                    "step": "align_chunk",
+                                    "chunk_index": i,
+                                    "chunk_offset": chunk.start_offset,
+                                    "chunk_duration": chunk.duration,
+                                    "chunk_word_count": len(chunk_text.split()),
+                                })
+                            )
+                            chunk_words = await run_in_threadpool(
+                                _align_single_chunk,
+                                model,
+                                chunk,
+                                chunk_text,
+                                prompt_language,
+                            )
+                            all_words.extend(chunk_words)
 
-                    words = all_words
+                        words = all_words
                 else:
                     # ── Single-pass alignment for short audio ─────────
                     chunk_count = 1

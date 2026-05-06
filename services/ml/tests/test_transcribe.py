@@ -11,7 +11,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from app.config import Settings
-from app.lib.audio import AudioInfrastructureError, AudioInputError
+from app.lib.audio import AudioChunk, AudioInfrastructureError, AudioInputError
 from app.main import app
 from app.models.asr_model import ModelLoadError, get_asr_model, reset_asr_model_cache
 
@@ -35,10 +35,20 @@ class _FakeModel:
         self.calls: list[dict[str, object]] = []
         self.output_language = output_language
 
-    def generate(self, _audio_path: str, *, verbose: bool = False, **kwargs: object) -> _FakeOutput:
-        self.calls.append({"verbose": verbose, **kwargs})
+    def generate(self, audio_path: str, *, verbose: bool = False, **kwargs: object) -> _FakeOutput:
+        self.calls.append({"audio_path": audio_path, "verbose": verbose, **kwargs})
         _ = verbose
         return _FakeOutput(text="ciao dal test", language=self.output_language)
+
+
+class _PathTextFakeModel:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    def generate(self, audio_path: str, *, verbose: bool = False, **kwargs: object) -> _FakeOutput:
+        self.calls.append({"audio_path": audio_path, "verbose": verbose, **kwargs})
+        text = "primo chunk" if audio_path.endswith("chunk_0000.wav") else "secondo chunk"
+        return _FakeOutput(text=text, language="Italian")
 
 
 class _FakeMemorySampler:
@@ -100,6 +110,38 @@ def test_transcribe_uses_explicit_language_hint(tmp_path: Path) -> None:
     assert response.status_code == 200
     assert response.json()["language"] == "it"
     assert fake_model.calls[0]["language"] == "Italian"
+
+
+def test_transcribe_long_audio_returns_chunk_metadata(tmp_path: Path) -> None:
+    settings = _make_settings(tmp_path)
+    fake_model = _PathTextFakeModel()
+    chunks = [
+        AudioChunk(Path("chunk_0000.wav"), 0.0, 240.0),
+        AudioChunk(Path("chunk_0001.wav"), 240.0, 20.0),
+    ]
+
+    with (
+        patch("app.routers.asr.get_settings", return_value=settings),
+        patch("app.routers.asr.probe_audio_duration_seconds", return_value=260.0),
+        patch("app.routers.asr.normalize_audio_for_asr"),
+        patch("app.routers.asr.split_audio_into_chunks", return_value=chunks),
+        patch("app.routers.asr.get_asr_model", return_value=fake_model),
+    ):
+        client = TestClient(app)
+        response = client.post(
+            "/transcribe",
+            files={"file": ("sample.m4a", b"fake-audio", "audio/mp4")},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["text"] == "primo chunk secondo chunk"
+    assert data["language"] == "it"
+    assert data["chunks"] == [
+        {"text": "primo chunk", "start_time": 0.0, "end_time": 240.0},
+        {"text": "secondo chunk", "start_time": 240.0, "end_time": 260.0},
+    ]
+    assert len(fake_model.calls) == 2
 
 
 def test_transcribe_logs_memory_metrics_on_success(tmp_path: Path) -> None:

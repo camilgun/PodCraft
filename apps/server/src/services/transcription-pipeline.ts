@@ -106,7 +106,12 @@ export async function runTranscriptionPipeline(
     }
 
     const alignStart = Date.now();
-    const alignResult = await mlAlign(filePath, asrResult.data.text, asrResult.data.language);
+    const alignResult = await mlAlign(
+      filePath,
+      asrResult.data.text,
+      asrResult.data.language,
+      asrResult.data.chunks,
+    );
     if (!alignResult.ok) {
       const message = `Alignment failed: ${alignResult.error}`;
       console.error(

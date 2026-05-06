@@ -4,6 +4,7 @@ import {
   healthResponseSchema,
   qualityResponseSchema,
   qualityWindowSchema,
+  transcribeChunkSchema,
   transcribeResponseSchema,
   recordingSchema,
   recordingsListResponseSchema,
@@ -22,6 +23,7 @@ import {
   type HealthResponseFromSchema,
   type QualityResponseFromSchema,
   type QualityWindowFromSchema,
+  type TranscribeChunkFromSchema,
   type TranscribeResponseFromSchema,
   type RecordingFromSchema,
   type RecordingsListResponseFromSchema,
@@ -83,6 +85,45 @@ describe("transcribeResponseSchema", () => {
     });
 
     expect(parsed.language).toBe("unknown");
+  });
+
+  it("accepts chunk metadata for long audio", () => {
+    const parsed: TranscribeResponseFromSchema = transcribeResponseSchema.parse({
+      text: "ciao mondo altro testo",
+      language: "it",
+      inference_time_seconds: 12.5,
+      audio_duration_seconds: 480,
+      model_used: "mlx-community/Qwen3-ASR-1.7B-bf16",
+      chunks: [
+        { text: "ciao mondo", start_time: 0, end_time: 240 },
+        { text: "altro testo", start_time: 240, end_time: 480 },
+      ],
+    });
+
+    expect(parsed.chunks).toHaveLength(2);
+    expect(parsed.chunks?.[1]?.start_time).toBe(240);
+  });
+});
+
+describe("transcribeChunkSchema", () => {
+  it("accepts a valid transcribe chunk", () => {
+    const parsed: TranscribeChunkFromSchema = transcribeChunkSchema.parse({
+      text: "ciao mondo",
+      start_time: 0,
+      end_time: 240,
+    });
+
+    expect(parsed.end_time).toBe(240);
+  });
+
+  it("rejects inverted transcribe chunk timing", () => {
+    const parsed = transcribeChunkSchema.safeParse({
+      text: "ciao mondo",
+      start_time: 240,
+      end_time: 10,
+    });
+
+    expect(parsed.success).toBe(false);
   });
 });
 

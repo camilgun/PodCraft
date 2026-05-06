@@ -28,6 +28,27 @@ class HealthResponse(BaseModel):
     models_dir: str = Field(description="Base directory for model storage")
 
 
+class TranscribeChunk(BaseModel):
+    """Transcription text generated from one contiguous audio chunk."""
+
+    text: str = Field(description="Transcription text for this chunk")
+    start_time: float = Field(
+        description="Chunk start time in seconds",
+        ge=0,
+    )
+    end_time: float = Field(
+        description="Chunk end time in seconds",
+        ge=0,
+    )
+
+    @model_validator(mode="after")
+    def validate_timing(self) -> "TranscribeChunk":
+        """Ensure chunk timestamps are monotonic."""
+        if self.end_time < self.start_time:
+            raise ValueError("end_time must be greater than or equal to start_time")
+        return self
+
+
 class TranscribeResponse(BaseModel):
     """Response schema for POST /transcribe."""
 
@@ -48,6 +69,10 @@ class TranscribeResponse(BaseModel):
         gt=0,
     )
     model_used: str = Field(description="Model identifier used for transcription")
+    chunks: list[TranscribeChunk] | None = Field(
+        default=None,
+        description="Per-chunk transcript metadata for long audio",
+    )
 
 
 class AlignedWord(BaseModel):

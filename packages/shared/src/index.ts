@@ -1,6 +1,7 @@
 // ─── ML Service response types ────────────────────────────────────────────────
 export type { HealthResponse } from "./types.js";
 export type { TranscribeResponse } from "./types.js";
+export type { TranscribeChunk } from "./types.js";
 export type { MlAlignedWord } from "./types.js";
 export type { AlignResponse } from "./types.js";
 export type { QualityWindow } from "./types.js";
@@ -8,6 +9,7 @@ export type { QualityResponse } from "./types.js";
 
 export {
   healthResponseSchema,
+  transcribeChunkSchema,
   transcribeResponseSchema,
   mlAlignedWordSchema,
   alignResponseSchema,
@@ -16,6 +18,7 @@ export {
 } from "./schemas.js";
 export type {
   HealthResponseFromSchema,
+  TranscribeChunkFromSchema,
   TranscribeResponseFromSchema,
   MlAlignedWordFromSchema,
   AlignResponseFromSchema,

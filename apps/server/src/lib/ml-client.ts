@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { Agent, fetch as undiciFetch, FormData as UndiciFormData } from "undici";
 import { transcribeResponseSchema, alignResponseSchema } from "@podcraft/shared";
-import type { TranscribeResponse, AlignResponse } from "@podcraft/shared";
+import type { TranscribeChunk, TranscribeResponse, AlignResponse } from "@podcraft/shared";
 import { config } from "../config.js";
 
 export type MlResult<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -73,11 +73,13 @@ export async function mlAlign(
   filePath: string,
   text: string,
   language?: string,
+  chunks?: TranscribeChunk[] | null,
 ): Promise<MlResult<AlignResponse>> {
   let response: Response;
   try {
     const fields: Record<string, string> = { text };
     if (language) fields["language"] = language;
+    if (chunks && chunks.length > 0) fields["chunks_json"] = JSON.stringify(chunks);
     const form = await buildAudioFormData(filePath, fields);
     response = (await undiciFetch(`${config.mlServiceUrl}/align`, {
       method: "POST",

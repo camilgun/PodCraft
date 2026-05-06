@@ -11,6 +11,13 @@ export interface TranscribeResponse {
   inference_time_seconds: number;
   audio_duration_seconds: number;
   model_used: string;
+  chunks?: TranscribeChunk[] | null | undefined;
+}
+
+export interface TranscribeChunk {
+  text: string;
+  start_time: number;
+  end_time: number;
 }
 
 export interface MlAlignedWord {
