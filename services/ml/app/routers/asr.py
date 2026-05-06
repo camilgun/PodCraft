@@ -21,6 +21,7 @@ from app.lib.audio import (
     probe_audio_duration_seconds,
     split_audio_into_chunks,
 )
+from app.lib.chunking import TRANSCRIPTION_CHUNK_SECONDS
 from app.lib.inference_limits import ASR_INFERENCE_SEMAPHORE
 from app.lib.language import (
     is_supported_asr_language_hint,
@@ -37,7 +38,6 @@ router = APIRouter(tags=["asr"])
 
 READ_CHUNK_SIZE = 1024 * 1024
 MEMORY_SAMPLE_INTERVAL_SECONDS = 0.5
-ASR_MAX_CHUNK_SECONDS = 240.0
 
 
 def _log_transcribe_status(
@@ -179,7 +179,7 @@ async def transcribe_audio(
         )
         await run_in_threadpool(normalize_audio_for_asr, upload_path, normalized_path)
         model = await run_in_threadpool(get_asr_model, settings)
-        needs_chunking = audio_duration_seconds > ASR_MAX_CHUNK_SECONDS
+        needs_chunking = audio_duration_seconds > TRANSCRIPTION_CHUNK_SECONDS
         response_chunks: list[TranscribeChunk] | None = None
         detected_languages: list[str] = []
 
@@ -196,7 +196,7 @@ async def transcribe_audio(
                         normalized_path,
                         chunks_dir,
                         audio_duration_seconds,
-                        ASR_MAX_CHUNK_SECONDS,
+                        TRANSCRIPTION_CHUNK_SECONDS,
                     )
                     chunk_count = len(audio_chunks)
 
@@ -205,7 +205,7 @@ async def transcribe_audio(
                             "step": "transcribe_chunked",
                             "chunk_count": chunk_count,
                             "audio_duration": audio_duration_seconds,
-                            "chunk_seconds": ASR_MAX_CHUNK_SECONDS,
+                            "chunk_seconds": TRANSCRIPTION_CHUNK_SECONDS,
                         })
                     )
 

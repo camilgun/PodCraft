@@ -5,6 +5,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from app.lib.chunking import TRANSCRIPTION_CHUNK_SECONDS
+
 
 class AudioProcessingError(RuntimeError):
     """Raised when audio processing fails."""
@@ -138,7 +140,7 @@ def split_audio_into_chunks(
     audio_path: Path,
     output_dir: Path,
     total_duration: float,
-    chunk_seconds: float = 240.0,
+    chunk_seconds: float = TRANSCRIPTION_CHUNK_SECONDS,
 ) -> list[AudioChunk]:
     """Split an audio file into fixed-length WAV chunks using ffmpeg.
 

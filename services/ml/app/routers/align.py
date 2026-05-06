@@ -1,6 +1,6 @@
 """Forced alignment routes.
 
-Long audio (> ALIGN_MAX_CHUNK_SECONDS, default 240 s) is automatically split
+Long audio (> TRANSCRIPTION_CHUNK_SECONDS, default 240 s) is automatically split
 into shorter chunks, each aligned independently, then merged with time offsets.
 This works around the Qwen3-ForcedAligner-0.6B limitation of ≤ 5 min per pass.
 """
@@ -28,6 +28,7 @@ from app.lib.audio import (
     probe_audio_duration_seconds,
     split_audio_into_chunks,
 )
+from app.lib.chunking import TRANSCRIPTION_CHUNK_SECONDS
 from app.lib.language import is_supported_asr_language_hint, resolve_asr_prompt_language
 from app.lib.memory import MemorySampler
 from app.models.aligner_model import AlignerLoadError, get_aligner_model
@@ -40,9 +41,6 @@ ALIGN_MAX_CONCURRENT_INFERENCES = 1
 MEMORY_SAMPLE_INTERVAL_SECONDS = 0.5
 ALIGN_INFERENCE_SEMAPHORE = asyncio.Semaphore(ALIGN_MAX_CONCURRENT_INFERENCES)
 
-# Qwen3-ForcedAligner-0.6B supports ≤ 5 min.  Use 4 min as the default
-# chunk size to leave a safety margin.
-ALIGN_MAX_CHUNK_SECONDS = 240.0
 TRANSCRIBE_CHUNKS_ADAPTER = TypeAdapter(list[TranscribeChunk])
 
 
@@ -325,7 +323,7 @@ async def align_audio(
         await run_in_threadpool(normalize_audio_for_asr, upload_path, normalized_path)
         model = await run_in_threadpool(get_aligner_model, settings)
 
-        needs_chunking = audio_duration_seconds > ALIGN_MAX_CHUNK_SECONDS
+        needs_chunking = audio_duration_seconds > TRANSCRIPTION_CHUNK_SECONDS
 
         async with ALIGN_INFERENCE_SEMAPHORE:
             inference_started = time.perf_counter()
@@ -341,7 +339,7 @@ async def align_audio(
                         normalized_path,
                         chunks_dir,
                         audio_duration_seconds,
-                        ALIGN_MAX_CHUNK_SECONDS,
+                        TRANSCRIPTION_CHUNK_SECONDS,
                     )
                     chunk_count = len(audio_chunks)
                     if transcript_chunks is not None and len(transcript_chunks) != chunk_count:
@@ -367,7 +365,7 @@ async def align_audio(
                             "step": "align_chunked",
                             "chunk_count": chunk_count,
                             "audio_duration": audio_duration_seconds,
-                            "chunk_seconds": ALIGN_MAX_CHUNK_SECONDS,
+                            "chunk_seconds": TRANSCRIPTION_CHUNK_SECONDS,
                             "chunk_text_source": (
                                 "transcribe_chunks"
                                 if transcript_chunks is not None
